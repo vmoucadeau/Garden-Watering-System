@@ -1,0 +1,1 @@
+[{"name":"Arrosage Herbe Piscine","id_ev":0,"type":0,"pin":5,"state":false},{"name":"Arrosage Ouest Zone 1","id_ev":1,"type":1,"urlstart":"http://192.168.4.1/gpio/5/1","urlstop":"http://192.168.4.1/gpio/5/0","state":false},{"name":"Arrosage Ouest Zone 2","id_ev":2,"type":1,"urlstart":"http://192.168.4.1/gpio/6/1","urlstop":"http://192.168.4.1/gpio/6/0","state":true}]
