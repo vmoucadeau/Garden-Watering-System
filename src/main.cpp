@@ -63,6 +63,54 @@ void DeleteCycle(size_t idtodelete) {
   }
 }
 
+void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, boolean temp) {
+  File schedules = SPIFFS.open("/schedules.json", "r");
+
+  if(schedules && schedules.size()) {
+
+    DynamicJsonDocument schedulesjson(1300);
+    DeserializationError err = deserializeJson(schedulesjson, schedules);
+    Serial.println(err.c_str());
+    if (err) {
+      Serial.print(F("deserializeJson() failed with code "));
+      Serial.println(err.c_str());
+    }
+    else {
+      
+      StaticJsonDocument<600> doc;
+
+      // create an object
+      JsonObject Schedule = doc.to<JsonObject>();
+      Schedule["name"] = name;
+      Schedule["id_ev"] = id_ev;
+      Schedule["id_prog"] = schedulesjson.size();
+      Schedule["Hourstart"] = starth;
+      Schedule["Minstart"] = startm;
+      Schedule["Hourstop"] = endh;
+      Schedule["Minstop"] = endm;
+      Schedule["daysActive"] = daysjson;
+      Schedule["temporary"] = temp;
+      schedulesjson.add(Schedule);
+      for(int i=0; i<schedulesjson.size(); i++) {
+        schedulesjson[i]["id_prog"] = i;
+        
+          String id = schedulesjson[i]["id_prog"];
+          String name = schedulesjson[i]["name"];
+          Serial.println(name + " : " + id);
+        
+      }
+      schedules.close();
+      // schedules = SPIFFS.open("/schedules.json", "w");
+      // serializeJson(schedulesjson, schedules);
+      // schedules.close();   
+    } 
+    schedules.close();
+  }
+  else {
+    Serial.println("Impossible de lire le fichier.");
+  }
+}
+
 void setup() {
 
   // Serial
@@ -158,6 +206,51 @@ void setup() {
       Serial.println("ID à supprimer : " + String(idtodelete));
       DeleteCycle(idtodelete);
     }
+    request->send(204);
+  });
+  server.on("/AddCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
+    
+    if(request->hasParam("name", true) && request->hasParam("id_ev", true) && request->hasParam("starth", true) && request->hasParam("startm", true) && request->hasParam("endh", true) && request->hasParam("endm", true) && request->hasParam("monday", true) && request->hasParam("tuesday", true) && request->hasParam("wednesday", true) && request->hasParam("thursday", true) && request->hasParam("friday", true) && request->hasParam("saturday", true) && request->hasParam("sunday", true) && request->hasParam("temporary", true) ) {
+      String name = request->getParam("name", true)->value();
+      int id_ev = request->getParam("id_ev", true)->value().toInt();
+      int starth = request->getParam("starth", true)->value().toInt();
+      int startm = request->getParam("startm", true)->value().toInt();
+      int endh = request->getParam("endh", true)->value().toInt();
+      int endm = request->getParam("endm", true)->value().toInt();
+
+      int monday = request->getParam("monday", true)->value().toInt();
+      int tuesday = request->getParam("tuesday", true)->value().toInt();
+      int wednesday = request->getParam("wednesday", true)->value().toInt();
+      int thursday = request->getParam("thursday", true)->value().toInt();
+      int friday = request->getParam("friday", true)->value().toInt();
+      int saturday = request->getParam("saturday", true)->value().toInt();
+      int sunday = request->getParam("sunday", true)->value().toInt();
+
+      int temporary = request->getParam("temporary", true)->value().toInt();
+
+      StaticJsonDocument<600> doc;
+      JsonObject days = doc.to<JsonObject>();
+      days["monday"] = monday ? true : false;
+      days["tuesday"] = tuesday ? true : false;
+      days["wednesday"] = wednesday ? true : false;
+      days["thursday"] = thursday ? true : false;
+      days["friday"] = friday ? true : false;
+      days["saturday"] = saturday ? true : false;
+      days["sunday"] = sunday ? true : false;
+
+      
+      Serial.println("Valeur reçues : ");
+      Serial.println("Nom cycle : " + name);
+      Serial.println("Vanne : " + String(id_ev));
+      Serial.println("Temporaire : " + String(temporary));
+      Serial.println("Heure début : " + String(starth) + "h" + String(startm));
+      Serial.println("Heure fin : " + String(endh) + "h" + String(endm));
+      Serial.println("Jours : ");
+
+      serializeJson(doc, Serial);
+
+    }
+    
     request->send(204);
   });
 
