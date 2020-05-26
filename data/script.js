@@ -171,7 +171,7 @@ function AddCycle(name, id_valve, StartHour, EndHour, days, temp) {
         friday: days[4],
         saturday: days[5],
         sunday: days[6],
-        temporary: tem
+        temporary: temp
     });
 } 
 
