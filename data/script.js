@@ -156,9 +156,24 @@ function DeleteCycle(id_prog) {
 }
 
 // AddCycle ici
-function AddCycle(name, id_valve, StartHour, EndHour, days) {
-
-}
+function AddCycle(name, id_valve, StartHour, EndHour, days, temp) {
+    $.post('AddCycle', {
+        name: name,
+        id_ev: id_valve,
+        starth: StartHour.getHours(),
+        startm: StartHour.getMinutes(),
+        endh: EndHour.getHours(),
+        endm: EndHour.getMinutes(),
+        monday: days[0],
+        tuesday: days[1],
+        wednesday: days[2],
+        thursday: days[3],
+        friday: days[4],
+        saturday: days[5],
+        sunday: days[6],
+        temporary: temp
+    });
+} 
 
 $( "#cyclesave" ).click(function() {
     var name = $("#cyclename").val();
@@ -184,9 +199,13 @@ $( "#cyclesave" ).click(function() {
     var falsearray = [false, false, false, false, false, false, false];
     if(daysactive.equals(falsearray)) {alert("Veuillez sélectionner au moins un jour"); return;}
 
-    $('#ModalCreateSchedule').modal('hide');
+    
+    if (window.confirm('Voulez-vous créer le cycle "' + name + '" ? \nValeurs : \nNom : ' + name + "\n" + "Vanne : " + id_ev + "\n" + "Heure début : " + StartHour.getHours() + "h" + StartHour.getMinutes() + "\n" + "Heure de fin : " + EndHour.getHours() + "h" + EndHour.getMinutes() + "\n" + "Jours : " + daysactive)) {
+        $('#ModalCreateSchedule').modal('hide');
+        AddCycle(name, id_ev, StartHour, EndHour, daysactive, false);
+    }    
 
-    alert("Nom : " + name + "\n" + "Valve : " + id_ev + "\n" + "Heure début : " + hstart + "h" + mstart + "\n" + "Heure de fin : " + end + "\n" + "Jours : " + daysactive);
+    $('#ModalCreateSchedule').modal('hide');
 });
 
 // AddValve ici
