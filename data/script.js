@@ -1,4 +1,4 @@
-var monday = false, tuesday = false, wednesday = false, thursday = false, friday = false, saturday = false, sunday = false;
+var monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
 // Warn if overriding existing method
 if(Array.prototype.equals)
@@ -196,13 +196,13 @@ $( "#cyclesave" ).click(function() {
     if(EndHour < StartHour) {alert("L'heure de fin doit être supérieure à l'heure de début"); return;}
 
     var daysactive = [monday, tuesday, wednesday, thursday, friday, saturday, sunday];
-    var falsearray = [false, false, false, false, false, false, false];
+    var falsearray = [0, 0, 0, 0, 0, 0, 0];
     if(daysactive.equals(falsearray)) {alert("Veuillez sélectionner au moins un jour"); return;}
 
     
     if (window.confirm('Voulez-vous créer le cycle "' + name + '" ? \nValeurs : \nNom : ' + name + "\n" + "Vanne : " + id_ev + "\n" + "Heure début : " + StartHour.getHours() + "h" + StartHour.getMinutes() + "\n" + "Heure de fin : " + EndHour.getHours() + "h" + EndHour.getMinutes() + "\n" + "Jours : " + daysactive)) {
         $('#ModalCreateSchedule').modal('hide');
-        AddCycle(name, id_ev, StartHour, EndHour, daysactive, false);
+        AddCycle(name, id_ev, StartHour, EndHour, daysactive, 0);
     }    
 
     $('#ModalCreateSchedule').modal('hide');
@@ -211,28 +211,28 @@ $( "#cyclesave" ).click(function() {
 // AddValve ici
 
 function setDay() {
-    monday = false, tuesday = false, wednesday = false, thursday = false, friday = false, saturday = false, sunday = false;
+    monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
     if($("#monday").is(":checked")) {
-        monday = true;
+        monday = 1;
     }
     if($("#tuesday").is(":checked")) {
-        tuesday = true;
+        tuesday = 1;
     }
     if($("#wednesday").is(":checked")) {
-        wednesday = true;
+        wednesday = 1;
     }
     if($("#thursday").is(":checked")) {
-        thursday = true;
+        thursday = 1;
     }
     if($("#friday").is(":checked")) {
-        friday = true;
+        friday = 1;
     }
     if($("#saturday").is(":checked")) {
-        saturday = true;
+        saturday = 1;
     }
     if($("#sunday").is(":checked")) {
-        sunday = true;
+        sunday = 1;
     }
 
 }

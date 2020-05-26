@@ -63,7 +63,7 @@ void DeleteCycle(size_t idtodelete) {
   }
 }
 
-void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, boolean temp) {
+void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, int temp) {
   File schedules = SPIFFS.open("/schedules.json", "r");
 
   if(schedules && schedules.size()) {
@@ -88,8 +88,9 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
       Schedule["Minstart"] = startm;
       Schedule["Hourstop"] = endh;
       Schedule["Minstop"] = endm;
-      Schedule["daysActive"] = daysjson;
-      Schedule["temporary"] = temp;
+
+      Schedule["temporary"] = temp ? true : false;
+      serializeJsonPretty(Schedule, Serial);
       schedulesjson.add(Schedule);
       for(int i=0; i<schedulesjson.size(); i++) {
         schedulesjson[i]["id_prog"] = i;
@@ -230,6 +231,7 @@ void setup() {
 
       StaticJsonDocument<600> doc;
       JsonObject days = doc.to<JsonObject>();
+      
       days["monday"] = monday ? true : false;
       days["tuesday"] = tuesday ? true : false;
       days["wednesday"] = wednesday ? true : false;
@@ -238,7 +240,8 @@ void setup() {
       days["saturday"] = saturday ? true : false;
       days["sunday"] = sunday ? true : false;
 
-      
+
+      /*
       Serial.println("Valeur reçues : ");
       Serial.println("Nom cycle : " + name);
       Serial.println("Vanne : " + String(id_ev));
@@ -246,8 +249,10 @@ void setup() {
       Serial.println("Heure début : " + String(starth) + "h" + String(startm));
       Serial.println("Heure fin : " + String(endh) + "h" + String(endm));
       Serial.println("Jours : ");
+      serializeJsonPretty(days, Serial);
+      */
 
-      serializeJson(doc, Serial);
+      AddCycle(name, id_ev, starth, startm, endh, endm, days, temporary);
 
     }
     
