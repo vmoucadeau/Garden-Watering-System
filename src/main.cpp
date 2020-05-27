@@ -35,6 +35,7 @@ void DeleteCycle(size_t idtodelete) {
   if(schedules && schedules.size()) {
 
     DynamicJsonDocument schedulesjson(1300);
+    JsonArray schedulesarray = schedulesjson.to<JsonArray>();
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     Serial.println(err.c_str());
     if (err) {
@@ -43,8 +44,10 @@ void DeleteCycle(size_t idtodelete) {
     }
     else {
       schedulesjson.remove(idtodelete);
-      for(int i=0; i<schedulesjson.size(); i++) {
-        schedulesjson[i]["id_prog"] = i;
+      int i = 0;
+      for(JsonObject loop : schedulesarray) {
+        loop["id_prog"] = i;
+        i++;
         /* DEBUG
           String id = schedulesjson[i]["id_prog"];
           String name = schedulesjson[i]["name"];
@@ -69,6 +72,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   if(schedules && schedules.size()) {
 
     DynamicJsonDocument schedulesjson(1300);
+    JsonArray schedulesarray = schedulesjson.to<JsonArray>();
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     Serial.println(err.c_str());
     if (err) {
@@ -76,29 +80,26 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
       Serial.println(err.c_str());
     }
     else {
-      
-      StaticJsonDocument<600> doc;
+    
+      int id_prog = schedulesjson.size();
+      JsonObject schedule = schedulesarray.createNestedObject();
+      schedule["name"] = name;
+      schedule["id_ev"] = id_ev;
+      schedule["id_prog"] = id_prog;
+      schedule["Hourstart"] = starth;
+      schedule["Minstart"] = startm;
+      schedule["Hourstop"] = endh;
+      schedule["Minstop"] = endm;
+      schedule["daysActive"] = daysjson;
+      schedule["temporary"] = temp ? true : false;
 
-      // create an object
-      JsonObject Schedule = doc.to<JsonObject>();
-      Schedule["name"] = name;
-      Schedule["id_ev"] = id_ev;
-      Schedule["id_prog"] = schedulesjson.size();
-      Schedule["Hourstart"] = starth;
-      Schedule["Minstart"] = startm;
-      Schedule["Hourstop"] = endh;
-      Schedule["Minstop"] = endm;
-
-      Schedule["temporary"] = temp ? true : false;
-      serializeJsonPretty(Schedule, Serial);
-      schedulesjson.add(Schedule);
-      for(int i=0; i<schedulesjson.size(); i++) {
-        schedulesjson[i]["id_prog"] = i;
-        
-          String id = schedulesjson[i]["id_prog"];
-          String name = schedulesjson[i]["name"];
-          Serial.println(name + " : " + id);
-        
+      Serial.println("Valeur de schedulesjson : ");
+      serializeJsonPretty(schedulesjson, Serial);
+      Serial.println(" ");
+      for(JsonObject loop : schedulesarray) {
+        String id = loop["id_prog"];
+        String name = loop["name"];
+        Serial.println(name + " : " + id);
       }
       schedules.close();
       // schedules = SPIFFS.open("/schedules.json", "w");
