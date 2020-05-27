@@ -21,6 +21,9 @@ AsyncWebServer server(80);
 
 DS3232RTC myRTC(false);
 
+DynamicJsonDocument schedulesjson(2048);
+JsonArray schedulesarray = schedulesjson.to<JsonArray>();
+
 void StartValve(int id) {
   return;
 } 
@@ -33,9 +36,7 @@ void DeleteCycle(size_t idtodelete) {
   File schedules = SPIFFS.open("/schedules.json", "r");
 
   if(schedules && schedules.size()) {
-
-    DynamicJsonDocument schedulesjson(1300);
-    JsonArray schedulesarray = schedulesjson.to<JsonArray>();
+    
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     Serial.println(err.c_str());
     if (err) {
@@ -57,6 +58,7 @@ void DeleteCycle(size_t idtodelete) {
       schedules.close();
       schedules = SPIFFS.open("/schedules.json", "w");
       serializeJson(schedulesjson, schedules);
+      schedulesjson.clear();
       schedules.close();   
     } 
     schedules.close();
@@ -71,8 +73,6 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
 
   if(schedules && schedules.size()) {
 
-    DynamicJsonDocument schedulesjson(1300);
-    JsonArray schedulesarray = schedulesjson.to<JsonArray>();
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     Serial.println(err.c_str());
     if (err) {
@@ -102,9 +102,10 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
         Serial.println(name + " : " + id);
       }
       schedules.close();
-      // schedules = SPIFFS.open("/schedules.json", "w");
-      // serializeJson(schedulesjson, schedules);
-      // schedules.close();   
+      schedules = SPIFFS.open("/schedules.json", "w");
+      serializeJson(schedulesjson, schedules);
+      schedulesjson.clear();
+      schedules.close();   
     } 
     schedules.close();
   }

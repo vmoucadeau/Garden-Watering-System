@@ -106,15 +106,14 @@ function InitCycles(reset) {
                 function(err, dataschedules) {
                     if (err !== null) {
                         alert('Something went wrong: ' + err);
-                    } else {                      
-                        for(var i = 0; i < dataschedules.length; i++) {
-                            var objschedule = dataschedules[i];
-
-                            for(var j = 0; j < datavalves.length; j++) {
-                                var objvalve = datavalves[j];
+                    } else {  
+                        for(var j = 0; j < datavalves.length; j++) {
+                            var objvalve = datavalves[j];
+                            for(var i = 0; i < dataschedules.length; i++) {
+                                var objschedule = dataschedules[i];
                                 
                                 if(objschedule.id_ev == objvalve.id_ev) {
-                                    
+                                
                                     if(!valvesdisplayed.includes(objvalve.id_ev)) {
                                         document.getElementById("cycles").innerHTML += "<div class=\"settingstitle\"> <h2 style=\"display: inline;\" class=\"tab_title\">Cycles (" + objvalve.name + ") :</h2> </div>";
                                         valvesdisplayed.push(objvalve.id_ev);
@@ -122,9 +121,12 @@ function InitCycles(reset) {
                                     
                                     document.getElementById("cycles").innerHTML += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + objschedule.id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p>  <p>Jour(s) :  </p> </a> </div>';
                                     
-                                }               
-                            } 
-                        }
+                                } 
+                                
+                            }
+                                          
+                        }                     
+                        
                     }
                 }
             );
