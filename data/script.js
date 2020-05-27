@@ -104,7 +104,7 @@ $(':checkbox').change(function() {
 function InitValves(reset) {
     var xhttp = new XMLHttpRequest();
     if(reset) {
-        document.getElementById("cycles").innerHTML = "";
+        document.getElementById("valves-list").innerHTML = "";
     }
     xhttp.onreadystatechange = function() {
         if(this.readyState == 4 && this.status == 200) {
