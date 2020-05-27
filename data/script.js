@@ -1,4 +1,5 @@
 var monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
+var vlistdisplayed = false;
 
 // ----------------------------------------------------------------- TOOLS FUNCTIONS
 
@@ -131,10 +132,11 @@ function InitValves(reset) {
                 else {
                     document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
                 }
-
-                document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
-                
+                if(!vlistdisplayed) {
+                    document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
+                }
             }
+            vlistdisplayed = true
             
         }
     };
