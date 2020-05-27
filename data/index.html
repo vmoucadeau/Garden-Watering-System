@@ -187,19 +187,41 @@
             </button>
           </div>
           <div class="modal-body">
-              <div class="form-group">
-                <label for="exampleInputEmail1">Email address</label>
-                <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email">
-                <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
-              </div>
-              <div class="form-group">
-                <label for="exampleInputPassword1">Password</label>
-                <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password">
-              </div>
-              <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="exampleCheck1">
-                <label class="form-check-label" for="exampleCheck1">Check me out</label>
-              </div>
+            <div class="form-group">
+              <label for="name">Nom</label>
+              <input type="text" class="form-control" id="cyclename" aria-describedby="nameHelp" placeholder="Nom de la vanne">
+              
+            </div>
+            <div class="form-group">
+              <label for="vannetype">Type</label>
+              <select id="vannetype" class="form-control">
+                <option selected disabled value="RIEN">Choisir un type...</option>
+                <option value="locallatching">Locale, à vérouillage</option>
+                <option value="local">Locale, classique</option>
+                <option value="distante">Distante</option>
+              </select>
+            </div>
+            <div id="showlocal" class="form-group" style="display: none;">
+              <label for="startpin">Pin de démmarage : </label>
+              <input type="number" id="startpin" name="startpin" value="">
+            </div>
+            <div id="showlocallatching" class="form-group" style="display: none;">
+              <label for="Hpin1">Pin 1 pont en H : </label>
+              <input type="number" id="Hpin1" name="Hpin1" value="">
+            </div>
+            <div id="showlocallatching" class="form-group" style="display: none;">
+              <label for="Hpin2">Pin 2 pont en H : </label>
+              <input type="number" id="Hpin2" name="endhour" value="">
+            </div>
+            <div id="showdistante" class="form-group" style="display: none;">
+              <label for="starturl">URL de démarrage : </label>
+              <input type="url" id="starturl" name="starturl" value="">
+            </div>
+            <div id="showdistante" class="form-group" style="display: none;">
+              <label for="stopurl">URL d'arrêt : </label>
+              <input type="url" id="stopurl" name="stopurl" value="">
+            </div>
+            
               
           </div>
           <div class="modal-footer">

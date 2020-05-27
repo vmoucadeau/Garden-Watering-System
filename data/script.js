@@ -1,5 +1,7 @@
 var monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
+// ----------------------------------------------------------------- TOOLS FUNCTIONS
+
 // Warn if overriding existing method
 if(Array.prototype.equals)
     console.warn("Overriding existing Array.prototype.equals. Possible causes: New API defines the method, there's a framework conflict or you've got double inclusions in your code.");
@@ -66,9 +68,44 @@ function getDate() {
 
 setInterval(getDate, 3000);
 
-function InitValves() {
-    var xhttp = new XMLHttpRequest();
+function setDay() {
+    monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
+    if($("#monday").is(":checked")) {
+        monday = 1;
+    }
+    if($("#tuesday").is(":checked")) {
+        tuesday = 1;
+    }
+    if($("#wednesday").is(":checked")) {
+        wednesday = 1;
+    }
+    if($("#thursday").is(":checked")) {
+        thursday = 1;
+    }
+    if($("#friday").is(":checked")) {
+        friday = 1;
+    }
+    if($("#saturday").is(":checked")) {
+        saturday = 1;
+    }
+    if($("#sunday").is(":checked")) {
+        sunday = 1;
+    }
+
+}
+
+$(':checkbox').change(function() {
+    setDay();
+});
+
+// ----------------------------------------------------------------- VALVES FUNCTIONS
+
+function InitValves(reset) {
+    var xhttp = new XMLHttpRequest();
+    if(reset) {
+        document.getElementById("cycles").innerHTML = "";
+    }
     xhttp.onreadystatechange = function() {
         if(this.readyState == 4 && this.status == 200) {
             var json = JSON.parse(this.responseText);
@@ -77,10 +114,10 @@ function InitValves() {
                 var obj = json[i];
                 var type = obj.type == 0 ? "Locale" : "Distante";
                 if (obj.state == true) {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>Type : " + type + " | ID vanne : " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
                 }
                 else {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>Type : " + type + " | ID vanne : " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
                 }
 
                 document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
@@ -92,6 +129,55 @@ function InitValves() {
     xhttp.open("GET", "valves.json", true);
     xhttp.send();
 }
+
+function AddValve(name, id_valve, StartHour, EndHour, days, temp) {
+    $.post('AddCycle', {
+        name: name,
+        id_ev: id_valve,
+        starth: StartHour.getHours(),
+        startm: StartHour.getMinutes(),
+        endh: EndHour.getHours(),
+        endm: EndHour.getMinutes(),
+        monday: days[0],
+        tuesday: days[1],
+        wednesday: days[2],
+        thursday: days[3],
+        friday: days[4],
+        saturday: days[5],
+        sunday: days[6],
+        temporary: temp
+    })
+    .done(function() {
+        setTimeout(InitValves(true), 1000);
+    })
+    .fail(function() {
+        alert("Il y a eu un problème lors de l'envoi des informations du nouveau cycle.")
+    });
+} 
+
+$("#vannetype").change(function() {
+    if($("#vannetype").val() == "locallatching") {
+        $("#showlocal").hide();
+        $("#showdistante").hide();
+        $("#showlocallatching").show();
+        
+    }
+    if($("#vannetype").val() == "local") {
+        $("#showlocallatching").hide();
+        $("#showdistante").hide();
+        $("#showlocal").show();
+    }
+    if($("#vannetype").val() == "distante") {
+        $("#showlocallatching").hide();
+        $("#showlocal").hide();
+        $("#showdistante").show();
+    }
+});
+
+
+
+
+// ----------------------------------------------------------------- CYCLES FUNCTIONS
 
 function InitCycles(reset) {
     var valvesdisplayed = [];
@@ -157,7 +243,6 @@ function DeleteCycle(id_prog) {
     });
 }
 
-// AddCycle ici
 function AddCycle(name, id_valve, StartHour, EndHour, days, temp) {
     $.post('AddCycle', {
         name: name,
@@ -216,38 +301,9 @@ $( "#cyclesave" ).click(function() {
     $('#ModalCreateSchedule').modal('hide');
 });
 
-// AddValve ici
 
-function setDay() {
-    monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
-    if($("#monday").is(":checked")) {
-        monday = 1;
-    }
-    if($("#tuesday").is(":checked")) {
-        tuesday = 1;
-    }
-    if($("#wednesday").is(":checked")) {
-        wednesday = 1;
-    }
-    if($("#thursday").is(":checked")) {
-        thursday = 1;
-    }
-    if($("#friday").is(":checked")) {
-        friday = 1;
-    }
-    if($("#saturday").is(":checked")) {
-        saturday = 1;
-    }
-    if($("#sunday").is(":checked")) {
-        sunday = 1;
-    }
-
-}
-
-$(':checkbox').change(function() {
-    setDay();
-});
+// ----------------------------------------------------------------- OTHERS FUNCTIONS
 
 $(document).ready(function() {
     getDate();
