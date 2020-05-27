@@ -119,7 +119,7 @@ function InitValves(reset) {
                 else if(obj.type == 1) {
                     type = "Distante";
                 }
-                else if(obj.type == 1) {
+                else if(obj.type == 2) {
                     type = "Locale (latching)";
                 }
                 else {
