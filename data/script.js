@@ -172,6 +172,12 @@ function AddCycle(name, id_valve, StartHour, EndHour, days, temp) {
         saturday: days[5],
         sunday: days[6],
         temporary: temp
+    })
+    .done(function() {
+        setTimeout(InitCycles(true), 1000);
+    })
+    .fail(function() {
+        alert("Il y a eu un problème lors de l'envoi des informations du nouveau cycle.")
     });
 } 
 
