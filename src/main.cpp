@@ -11,6 +11,8 @@
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 
+const int ActiveRelayPin = 15;
+boolean ActiveRelay = true;
 
 const char *ssid = "Arrosage";
 const char *password = "azerty7532";
@@ -124,9 +126,29 @@ void setup() {
   myRTC.begin();      
   // setTime(13, 17, 0, 19, 5, 2020);   
   // myRTC.set(now());                     //set the RTC from the system time
-  
   setSyncProvider(myRTC.get);
-  
+
+  // ActiveRelay
+  if(ActiveRelay) {
+    Serial.println("Relais activé.");
+    pinMode(ActiveRelayPin, OUTPUT);
+    digitalWrite(ActiveRelayPin, LOW);
+  }
+
+  // Pins init
+  pinMode(16, OUTPUT);
+  pinMode(0, OUTPUT);
+  pinMode(2, OUTPUT);
+  pinMode(14, OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(13, OUTPUT);
+  digitalWrite(16, LOW);
+  digitalWrite(0, LOW);
+  digitalWrite(2, HIGH);
+  digitalWrite(14, LOW);
+  digitalWrite(12, LOW);
+  digitalWrite(13, LOW);
+
   if (timeStatus() != timeSet) {
     Serial.println("Fail");
   }
@@ -255,6 +277,45 @@ void setup() {
       */
 
       AddCycle(name, id_ev, starth, startm, endh, endm, days, temporary);
+
+    }
+    
+    request->send(204);
+  });
+
+
+  server.on("/AddValve", HTTP_POST, [](AsyncWebServerRequest *request) {
+    
+    if(request->hasParam("name", true) && request->hasParam("type", true)) {
+      String name = request->getParam("name", true)->value();
+      int type = request->getParam("type", true)->value().toInt();
+      if(type == 0) {
+        if(request->hasParam("startpin", true)) {
+          int startpin = request->getParam("startpin", true)->value().toInt();
+          Serial.println("Ajout d'une valve locale : ");
+          Serial.println("StartPin : " + String(startpin));
+        }
+      }
+      if(type == 1) {
+        if(request->hasParam("starturl", true) && request->hasParam("stopurl", true)) {
+          String starturl = request->getParam("starturl", true)->value();
+          String stopurl = request->getParam("stopurl", true)->value();
+          Serial.println("Ajout d'une valve distante : ");
+          Serial.println("StartURL : " + String(starturl));
+          Serial.println("EndURL : " + String(stopurl));
+        }
+      }
+      if(type == 2) {
+        if(request->hasParam("Hpin1", true) && request->hasParam("Hpin2", true)) {
+          int Hpin1 = request->getParam("Hpin1", true)->value().toInt();
+          int Hpin2 = request->getParam("Hpin2", true)->value().toInt();
+          Serial.println("Ajout d'une valve avec pont en H : ");
+          Serial.println("Hpin1 : " + String(Hpin1));
+          Serial.println("Hpin2 : " + String(Hpin2));
+        }
+      }
+
+      
 
     }
     

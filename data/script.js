@@ -112,7 +112,19 @@ function InitValves(reset) {
             
             for(var i = 0; i < json.length; i++) {
                 var obj = json[i];
-                var type = obj.type == 0 ? "Locale" : "Distante";
+                var type;
+                if(obj.type == 0) {
+                    type = "Locale";
+                }
+                else if(obj.type == 1) {
+                    type = "Distante";
+                }
+                else if(obj.type == 1) {
+                    type = "Locale (latching)";
+                }
+                else {
+                    type = "Inconnu";
+                }
                 if (obj.state == true) {
                     document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
                 }
@@ -130,29 +142,48 @@ function InitValves(reset) {
     xhttp.send();
 }
 
-function AddValve(name, id_valve, StartHour, EndHour, days, temp) {
-    $.post('AddCycle', {
-        name: name,
-        id_ev: id_valve,
-        starth: StartHour.getHours(),
-        startm: StartHour.getMinutes(),
-        endh: EndHour.getHours(),
-        endm: EndHour.getMinutes(),
-        monday: days[0],
-        tuesday: days[1],
-        wednesday: days[2],
-        thursday: days[3],
-        friday: days[4],
-        saturday: days[5],
-        sunday: days[6],
-        temporary: temp
-    })
-    .done(function() {
-        setTimeout(InitValves(true), 1000);
-    })
-    .fail(function() {
-        alert("Il y a eu un problème lors de l'envoi des informations du nouveau cycle.")
-    });
+function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
+    if(type == 0) {
+        $.post('AddValve', {
+            name: name,
+            type: type,
+            startpin: startpin
+        })
+        .done(function() {
+            setTimeout(InitValves(true), 1000);
+        })
+        .fail(function() {
+            alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
+        });
+    }
+    if(type == 1) {
+        $.post('AddValve', {
+            name: name,
+            type: type,
+            starturl: starturl,
+            stopurl: stopurl
+        })
+        .done(function() {
+            setTimeout(InitValves(true), 1000);
+        })
+        .fail(function() {
+            alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
+        });
+    }
+    if(type == 2) {
+        $.post('AddValve', {
+            name: name,
+            type: type,
+            Hpin1: Hpin1,
+            Hpin2: Hpin2
+        })
+        .done(function() {
+            setTimeout(InitValves(true), 1000);
+        })
+        .fail(function() {
+            alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
+        });
+    }
 } 
 
 $("#vannetype").change(function() {
@@ -172,6 +203,35 @@ $("#vannetype").change(function() {
         $("#showlocal").hide();
         $("#showdistante").show();
     }
+});
+
+$( "#vannesave" ).click(function() {
+    var name = $("#valvename").val();
+    if(name == "") {alert("Veuillez définir un nom pour la vanne"); return;}
+    var type = $("#vannetype option:selected").val();
+    if(type == "RIEN") {alert("Veuillez choisir un type d'électrovanne"); return;}
+    
+    if(type == "local") {
+        var startpin = $("#startpin").val();
+        if(startpin == 5 || startpin == 4) {alert("Cette pin ne peut pas être utilisée."); return;}
+        AddValve(name, 0, startpin);
+    }
+    if(type == "locallatching") {
+        var Hpin1 = $("#Hpin1").val();
+        var Hpin2 = $("#Hpin2").val();
+        if(Hpin1 == 5 || Hpin1 == 4 ) {alert("La pin " + Hpin1 + " ne peut pas être utilisée."); return;}
+        if(Hpin2 == 5 || Hpin2 == 4 ) {alert("La pin " + Hpin2 + " ne peut pas être utilisée."); return;}
+        AddValve(name, 2, 0, Hpin1, Hpin2, "", "");
+    }
+    if(type == "distante") {
+        var starturl = $("#starturl").val();
+        var stopurl = $("#stopurl").val();
+        if(starturl == "") {alert("Vous devez renseignez une URL de démarrage."); return;}
+        if(stopurl == "") {alert("Vous devez renseignez une URL d'arrêt."); return;}
+        AddValve(name, 1, 0, 0, 0, starturl, stopurl);
+    }    
+
+    $('#ModalCreateEV').modal('hide');
 });
 
 
