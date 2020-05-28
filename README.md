@@ -1,4 +1,4 @@
-#Garden Watering System
+# Garden Watering System
 
 Principle of operation :
 	1) The system is composed of a master module, this can be an ESP8266 (ESP-12E) or an ESP32, on which an RTC module is connected (DS3231 in my case).
