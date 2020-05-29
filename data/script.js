@@ -166,6 +166,7 @@ function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
             stopurl: stopurl
         })
         .done(function() {
+            $('#tab1Id').tab('show');
             setTimeout(InitValves(true), 1000);
         })
         .fail(function() {

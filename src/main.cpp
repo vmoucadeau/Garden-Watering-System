@@ -26,6 +26,11 @@ DS3232RTC myRTC(false);
 DynamicJsonDocument schedulesjson(2048);
 JsonArray schedulesarray = schedulesjson.to<JsonArray>();
 
+
+DynamicJsonDocument valvesjson(1024);
+JsonArray valvesarray = valvesjson.to<JsonArray>();
+
+
 void StartValve(int id) {
   return;
 } 
@@ -95,6 +100,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
       schedule["daysActive"] = daysjson;
       schedule["temporary"] = temp ? true : false;
 
+      /* DEBUG
       Serial.println("Valeur de schedulesjson : ");
       serializeJsonPretty(schedulesjson, Serial);
       Serial.println(" ");
@@ -103,6 +109,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
         String name = loop["name"];
         Serial.println(name + " : " + id);
       }
+      */
       schedules.close();
       schedules = SPIFFS.open("/schedules.json", "w");
       serializeJson(schedulesjson, schedules);
@@ -115,6 +122,76 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
     Serial.println("Impossible de lire le fichier.");
   }
 }
+
+
+
+void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, String starturl, String stopurl) {
+  File valves = SPIFFS.open("/valves.json", "r");
+
+  if(valves && valves.size()) {
+    
+    DeserializationError err = deserializeJson(valvesjson, valves);
+    Serial.println(err.c_str());
+    
+    if (err) {
+      Serial.print(F("deserializeJson() failed with code "));
+      Serial.println(err.c_str());
+    }
+    
+    else {
+      int id_ev = valvesjson.size();
+      JsonObject valve = valvesarray.createNestedObject();
+      
+      valve["name"] = name;
+      valve["id_ev"] = id_ev;
+      
+      if(type == "local") {
+        valve["type"] = 0;
+        valve["startpin"] = startpin;
+      }
+      else if(type == "locallatching") {
+        valve["type"] = 2;
+        valve["Hpin1"] = Hpin1;
+        valve["Hpin2"] = Hpin2;
+      }
+      else if(type == "distante") {
+        valve["type"] = 1;
+        valve["starturl"] = starturl;
+        valve["stopurl"] = stopurl;
+      }
+      else {
+        return;
+      }
+      valve["state"] = false;
+      
+      /* DEBUG
+      Serial.println("Valeur de valvesjson : ");
+      serializeJsonPretty(valvesjson, Serial);
+      Serial.println(" ");
+      for(JsonObject loop : valvesarray) {
+        String id = loop["id_ev"];
+        String name = loop["name"];
+        Serial.println(name + " : " + id);
+      }
+      */
+         
+      valves.close();
+      valves = SPIFFS.open("/valves.json", "w");
+      serializeJson(valvesjson, valves);
+      valvesjson.clear();
+      valves.close();
+      
+    } 
+    valves.close();
+    
+  }
+  
+  else {
+    Serial.println("Impossible de lire le fichier.");
+  }
+  
+}
+
 
 void setup() {
 
@@ -294,6 +371,7 @@ void setup() {
           int startpin = request->getParam("startpin", true)->value().toInt();
           Serial.println("Ajout d'une valve locale : ");
           Serial.println("StartPin : " + String(startpin));
+          AddValve(name, "local", startpin, 0, 0, "", "");
         }
       }
       if(type == 1) {
@@ -303,6 +381,7 @@ void setup() {
           Serial.println("Ajout d'une valve distante : ");
           Serial.println("StartURL : " + String(starturl));
           Serial.println("EndURL : " + String(stopurl));
+          AddValve(name, "distante", 0, 0, 0, starturl, stopurl);
         }
       }
       if(type == 2) {
@@ -312,6 +391,7 @@ void setup() {
           Serial.println("Ajout d'une valve avec pont en H : ");
           Serial.println("Hpin1 : " + String(Hpin1));
           Serial.println("Hpin2 : " + String(Hpin2));
+          AddValve(name, "locallatching", 0, Hpin1, Hpin2, "", "");
         }
       }
 
