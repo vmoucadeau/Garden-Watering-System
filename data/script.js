@@ -106,6 +106,7 @@ function InitValves(reset) {
     var xhttp = new XMLHttpRequest();
     if(reset) {
         document.getElementById("valves-list").innerHTML = "";
+        document.getElementById("inputev").innerHTML = '<option selected disabled value="RIEN">Choisir un type...</option>';
     }
     xhttp.onreadystatechange = function() {
         if(this.readyState == 4 && this.status == 200) {
@@ -127,21 +128,49 @@ function InitValves(reset) {
                     type = "Inconnu";
                 }
                 if (obj.state == true) {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 }
                 else {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <small>Prochain démarrage : Jour, heuredébut-heurefin</small> <br> <small>Prochain arrêt : Jour, heure</small> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 }
-                if(!vlistdisplayed) {
-                    document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
-                }
+                
+                document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
             }
-            vlistdisplayed = true
+            
             
         }
     };
     xhttp.open("GET", "valves.json", true);
     xhttp.send();
+}
+
+function DeleteValve(id_ev) {
+    getJSON('valves.json', function(err, data) {
+        if(err !== null) {
+            alert("Il y a un problème : " + err);
+        }
+        else {
+            for(var i = 0; i < data.length; i++) {
+                var objdel = data[i];
+                if(id_ev == objdel.id_ev) {
+                    if (window.confirm('Voulez-vous vraiment supprimer la vanne "' + objdel.name + '" ?'))
+                    {
+                        $.post("DeleteValve", {
+                            id: id_ev
+                        })
+                        .done(function() {
+                            setTimeout(InitValves(true), 1000);
+                        })
+                        .fail(function() {
+                            alert("Il y a eu un problème lors de la suppression de la vanne.")
+                        });
+                        
+                    }    
+                }   
+            }
+        }
+        
+    });
 }
 
 function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
@@ -296,8 +325,14 @@ function DeleteCycle(id_prog) {
                     {
                         $.post("DeleteCycle", {
                             id: id_prog
+                        })
+                        .done(function() {
+                            setTimeout(InitCycles(true), 1000);
+                        })
+                        .fail(function() {
+                            alert("Il y a eu un problème lors de la suppression du cycle.")
                         });
-                        InitCycles(true);
+                        
                     }    
                 }   
             }

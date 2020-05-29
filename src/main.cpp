@@ -31,13 +31,6 @@ DynamicJsonDocument valvesjson(1024);
 JsonArray valvesarray = valvesjson.to<JsonArray>();
 
 
-void StartValve(int id) {
-  return;
-} 
-
-void StopValve(int id) {
-  return;
-} 
 
 void DeleteCycle(size_t idtodelete) {
   File schedules = SPIFFS.open("/schedules.json", "r");
@@ -55,12 +48,13 @@ void DeleteCycle(size_t idtodelete) {
       int i = 0;
       for(JsonObject loop : schedulesarray) {
         loop["id_prog"] = i;
-        i++;
         /* DEBUG
           String id = schedulesjson[i]["id_prog"];
           String name = schedulesjson[i]["name"];
           Serial.println(name + " : " + id);
         */
+        i++;
+        
       }
       schedules.close();
       schedules = SPIFFS.open("/schedules.json", "w");
@@ -78,7 +72,7 @@ void DeleteCycle(size_t idtodelete) {
 void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, int temp) {
   File schedules = SPIFFS.open("/schedules.json", "r");
 
-  if(schedules && schedules.size()) {
+  if(schedules) {
 
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     Serial.println(err.c_str());
@@ -123,12 +117,46 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   }
 }
 
+void DeleteValve(size_t idtodelete) {
+  File valves = SPIFFS.open("/valves.json", "r");
 
+  if(valves && valves.size()) {
+    
+    DeserializationError err = deserializeJson(valvesjson, valves);
+    Serial.println(err.c_str());
+    if (err) {
+      Serial.print(F("deserializeJson() failed with code "));
+      Serial.println(err.c_str());
+    }
+    else {
+      valvesjson.remove(idtodelete);
+      int i = 0;
+      for(JsonObject loop : valvesarray) {
+        loop["id_ev"] = i;
+        /* DEBUG
+          String id = schedulesjson[i]["id_prog"];
+          String name = schedulesjson[i]["name"];
+          Serial.println(name + " : " + id);
+        */
+        i++;
+      }
+      valves.close();
+      valves = SPIFFS.open("/valves.json", "w");
+      serializeJson(valvesjson, valves);
+      valvesjson.clear();
+      valves.close();   
+    } 
+    valves.close();
+  }
+  else {
+    Serial.println("Impossible de lire le fichier.");
+  }
+}
 
 void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, String starturl, String stopurl) {
   File valves = SPIFFS.open("/valves.json", "r");
 
-  if(valves && valves.size()) {
+  if(valves) {
     
     DeserializationError err = deserializeJson(valvesjson, valves);
     Serial.println(err.c_str());
@@ -191,6 +219,55 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
   }
   
 }
+
+void StartValve(int id_ev) {
+  File valves = SPIFFS.open("/valves.json", "r");
+  if(valves && valves.size()) {
+    DeserializationError err = deserializeJson(valvesjson, valves);
+    if (err) {
+      Serial.print(F("deserializeJson() failed with code "));
+      Serial.println(err.c_str());
+      return;
+    }
+    else {
+      for(JsonObject loop : valvesarray) {
+        String id = loop["id_ev"];
+        if(id.toInt() == id_ev) {
+          String name = loop["name"];
+          String type = loop["type"];
+          if(type.toInt() == 0) {
+            String startpin = loop["startpin"];
+            digitalWrite(startpin.toInt(), HIGH);
+            Serial.println("Normalement c'est bon...");
+          }
+          else if(type.toInt() == 1) {
+            String starturl = loop["starturl"];
+            String stopurl = loop["stopurl"];
+            Serial.println(name);
+            Serial.println("Vanne distante...");
+          }
+          else if(type.toInt() == 2) {
+            String Hpin1 = loop["Hpin1"];
+            String Hpin2 = loop["Hpin2"];
+            digitalWrite(Hpin1.toInt(), HIGH);
+            digitalWrite(Hpin2.toInt(), LOW);
+          }
+          else {
+            return;
+          }
+          if(ActiveRelay) {
+            digitalWrite(15, HIGH);
+          }
+        }
+      }
+    }
+  }
+  else {
+    return;
+  }
+} 
+
+
 
 
 void setup() {
@@ -301,15 +378,14 @@ void setup() {
   });
 
   server.on("/DeleteCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
-    String msg;
     if(request->hasParam("id", true)) {
-      msg = request->getParam("id", true)->value();
-      int idtodelete = msg.toInt();
-      Serial.println("ID à supprimer : " + String(idtodelete));
+      int idtodelete = request->getParam("id", true)->value().toInt();
+      Serial.println("Cycle à supprimer : " + String(idtodelete));
       DeleteCycle(idtodelete);
     }
     request->send(204);
   });
+
   server.on("/AddCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
     
     if(request->hasParam("name", true) && request->hasParam("id_ev", true) && request->hasParam("starth", true) && request->hasParam("startm", true) && request->hasParam("endh", true) && request->hasParam("endm", true) && request->hasParam("monday", true) && request->hasParam("tuesday", true) && request->hasParam("wednesday", true) && request->hasParam("thursday", true) && request->hasParam("friday", true) && request->hasParam("saturday", true) && request->hasParam("sunday", true) && request->hasParam("temporary", true) ) {
@@ -360,6 +436,14 @@ void setup() {
     request->send(204);
   });
 
+  server.on("/DeleteValve", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("id", true)) {
+      int idtodelete = request->getParam("id", true)->value().toInt();
+      Serial.println("Vanne à supprimer : " + String(idtodelete));
+      DeleteValve(idtodelete);
+    }
+    request->send(204);
+  });
 
   server.on("/AddValve", HTTP_POST, [](AsyncWebServerRequest *request) {
     
@@ -421,6 +505,7 @@ void setup() {
 
   server.begin();
   Serial.println("Serveur HTTP Async Actif !");
+  StartValve(3);
 }
 
 void loop() {
