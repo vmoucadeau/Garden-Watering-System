@@ -241,7 +241,6 @@ void StartValve(int id_ev) {
           else if(type.toInt() == 1) {
             String starturl = loop["starturl"];
             String stopurl = loop["stopurl"];
-            Serial.println(name);
             Serial.println("Vanne distante...");
             success = true;
           }
@@ -262,6 +261,8 @@ void StartValve(int id_ev) {
         if(ActiveRelay) {
           digitalWrite(ActiveRelayPin, HIGH);
         }
+        // Do what you want here
+        return;
       }
     }
   }
@@ -506,7 +507,7 @@ void setup() {
 
   server.begin();
   Serial.println("Serveur HTTP Async Actif !");
-  StartValve(3);
+  // StartValve(3); (TEST !!!)
 }
 
 void loop() {
