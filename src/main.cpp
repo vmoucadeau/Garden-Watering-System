@@ -14,6 +14,8 @@
 const int ActiveRelayPin = 15;
 boolean ActiveRelay = true;
 
+boolean invertHbridgelogic = false;
+
 const char *ssid = "Arrosage";
 const char *password = "azerty7532";
 
@@ -240,15 +242,20 @@ void StartValve(int id_ev) {
           }
           else if(type.toInt() == 1) {
             String starturl = loop["starturl"];
-            String stopurl = loop["stopurl"];
             Serial.println("Vanne distante...");
             success = true;
           }
           else if(type.toInt() == 2) {
             String Hpin1 = loop["Hpin1"];
             String Hpin2 = loop["Hpin2"];
-            digitalWrite(Hpin1.toInt(), HIGH);
-            digitalWrite(Hpin2.toInt(), LOW);
+            if(invertHbridgelogic) {
+              digitalWrite(Hpin1.toInt(), LOW);
+              digitalWrite(Hpin2.toInt(), HIGH);
+            }
+            else {
+              digitalWrite(Hpin1.toInt(), HIGH);
+              digitalWrite(Hpin2.toInt(), LOW);
+            }
             success = true;
           }
           else {
@@ -270,6 +277,63 @@ void StartValve(int id_ev) {
     return;
   }
 } 
+
+void StopValve(int id_ev) {
+  boolean success = false;
+  File valves = SPIFFS.open("/valves.json", "r");
+  if(valves && valves.size()) {
+    DeserializationError err = deserializeJson(valvesjson, valves);
+    valves.close();
+    if (err) {
+      Serial.print(F("deserializeJson() failed with code "));
+      Serial.println(err.c_str());
+    }
+    else {
+      for(JsonObject loop : valvesarray) {
+        String id = loop["id_ev"];
+        if(id.toInt() == id_ev) {
+          String name = loop["name"];
+          String type = loop["type"];
+          if(type.toInt() == 0) {
+            String startpin = loop["startpin"];
+            digitalWrite(startpin.toInt(), LOW);
+            success = true;
+          }
+          else if(type.toInt() == 1) {
+            String stopurl = loop["stopurl"];
+            Serial.println("Vanne distante...");
+            success = true;
+          }
+          else if(type.toInt() == 2) {
+            String Hpin1 = loop["Hpin1"];
+            String Hpin2 = loop["Hpin2"];
+            if(invertHbridgelogic) {
+              digitalWrite(Hpin1.toInt(), HIGH);
+              digitalWrite(Hpin2.toInt(), LOW);
+            }
+            else {
+              digitalWrite(Hpin1.toInt(), LOW);
+              digitalWrite(Hpin2.toInt(), HIGH);
+            }
+            
+            success = true;
+          }
+          else {
+            return;
+          }  
+        }
+      }
+      if(success) {
+        // Do what you want here
+        return;
+      }
+    }
+  }
+  else {
+    return;
+  }
+} 
+
 
 void setup() {
 
