@@ -38,6 +38,7 @@ void DeleteCycle(size_t idtodelete) {
   if(schedules && schedules.size()) {
     
     DeserializationError err = deserializeJson(schedulesjson, schedules);
+    schedules.close();
     Serial.println(err.c_str());
     if (err) {
       Serial.print(F("deserializeJson() failed with code "));
@@ -56,13 +57,11 @@ void DeleteCycle(size_t idtodelete) {
         i++;
         
       }
-      schedules.close();
       schedules = SPIFFS.open("/schedules.json", "w");
       serializeJson(schedulesjson, schedules);
       schedulesjson.clear();
       schedules.close();   
     } 
-    schedules.close();
   }
   else {
     Serial.println("Impossible de lire le fichier.");
@@ -75,6 +74,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   if(schedules) {
 
     DeserializationError err = deserializeJson(schedulesjson, schedules);
+    schedules.close();
     Serial.println(err.c_str());
     if (err) {
       Serial.print(F("deserializeJson() failed with code "));
@@ -104,13 +104,13 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
         Serial.println(name + " : " + id);
       }
       */
-      schedules.close();
+      
       schedules = SPIFFS.open("/schedules.json", "w");
       serializeJson(schedulesjson, schedules);
       schedulesjson.clear();
       schedules.close();   
     } 
-    schedules.close();
+    
   }
   else {
     Serial.println("Impossible de lire le fichier.");
@@ -123,6 +123,7 @@ void DeleteValve(size_t idtodelete) {
   if(valves && valves.size()) {
     
     DeserializationError err = deserializeJson(valvesjson, valves);
+    valves.close();
     Serial.println(err.c_str());
     if (err) {
       Serial.print(F("deserializeJson() failed with code "));
@@ -140,25 +141,26 @@ void DeleteValve(size_t idtodelete) {
         */
         i++;
       }
-      valves.close();
+      
       valves = SPIFFS.open("/valves.json", "w");
       serializeJson(valvesjson, valves);
-      valvesjson.clear();
-      valves.close();   
+      valvesjson.clear(); 
+      valves.close();
     } 
-    valves.close();
   }
   else {
     Serial.println("Impossible de lire le fichier.");
   }
+  
+  return;
 }
 
 void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, String starturl, String stopurl) {
   File valves = SPIFFS.open("/valves.json", "r");
 
   if(valves) {
-    
     DeserializationError err = deserializeJson(valvesjson, valves);
+    valves.close();
     Serial.println(err.c_str());
     
     if (err) {
@@ -202,32 +204,28 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
         Serial.println(name + " : " + id);
       }
       */
-         
-      valves.close();
+
       valves = SPIFFS.open("/valves.json", "w");
       serializeJson(valvesjson, valves);
       valvesjson.clear();
       valves.close();
-      
     } 
-    valves.close();
-    
   }
-  
   else {
     Serial.println("Impossible de lire le fichier.");
   }
-  
+  return;
 }
 
 void StartValve(int id_ev) {
+  boolean success = false;
   File valves = SPIFFS.open("/valves.json", "r");
   if(valves && valves.size()) {
     DeserializationError err = deserializeJson(valvesjson, valves);
+    valves.close();
     if (err) {
       Serial.print(F("deserializeJson() failed with code "));
       Serial.println(err.c_str());
-      return;
     }
     else {
       for(JsonObject loop : valvesarray) {
@@ -238,26 +236,31 @@ void StartValve(int id_ev) {
           if(type.toInt() == 0) {
             String startpin = loop["startpin"];
             digitalWrite(startpin.toInt(), HIGH);
-            Serial.println("Normalement c'est bon...");
+            success = true;
           }
           else if(type.toInt() == 1) {
             String starturl = loop["starturl"];
             String stopurl = loop["stopurl"];
             Serial.println(name);
             Serial.println("Vanne distante...");
+            success = true;
           }
           else if(type.toInt() == 2) {
             String Hpin1 = loop["Hpin1"];
             String Hpin2 = loop["Hpin2"];
             digitalWrite(Hpin1.toInt(), HIGH);
             digitalWrite(Hpin2.toInt(), LOW);
+            success = true;
           }
           else {
             return;
           }
-          if(ActiveRelay) {
-            digitalWrite(15, HIGH);
-          }
+          
+        }
+      }
+      if(success) {
+        if(ActiveRelay) {
+          digitalWrite(ActiveRelayPin, HIGH);
         }
       }
     }
@@ -266,9 +269,6 @@ void StartValve(int id_ev) {
     return;
   }
 } 
-
-
-
 
 void setup() {
 
@@ -289,7 +289,8 @@ void setup() {
     digitalWrite(ActiveRelayPin, LOW);
   }
 
-  // Pins init
+  // Pins init, for now, you need to replace with your pins if you don't have an ESP12E
+  // With an ESP12E, you can control 6 classic valves with relays localy and 3 latching valves (with L293D)
   pinMode(16, OUTPUT);
   pinMode(0, OUTPUT);
   pinMode(2, OUTPUT);
