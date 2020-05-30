@@ -131,10 +131,12 @@ void StartValve(int id_ev) {
                 digitalWrite(Hpin2.toInt(), HIGH);
               }
               else {
-
                 digitalWrite(Hpin1.toInt(), HIGH);
                 digitalWrite(Hpin2.toInt(), LOW);
               }
+              delay(1500);
+              digitalWrite(Hpin1.toInt(), LOW);
+              digitalWrite(Hpin2.toInt(), LOW);
               success = true;
             }
             else {
@@ -200,6 +202,9 @@ void StopValve(int id_ev) {
                 digitalWrite(Hpin1.toInt(), LOW);
                 digitalWrite(Hpin2.toInt(), HIGH);
               }
+              delay(1500);
+              digitalWrite(Hpin1.toInt(), LOW);
+              digitalWrite(Hpin2.toInt(), LOW);
               success = true;
             }
             else {
