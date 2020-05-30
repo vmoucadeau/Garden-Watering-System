@@ -1,6 +1,7 @@
 #include <Arduino.h>
 // ESP
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 // RTC/Time
@@ -24,6 +25,10 @@ float celsius;
 AsyncWebServer server(80);
 
 DS3232RTC myRTC(false);
+const int checkcycleinterval = 10;
+long alarm;
+
+boolean initated = false;
 
 DynamicJsonDocument schedulesjson(2048);
 JsonArray schedulesarray = schedulesjson.to<JsonArray>();
@@ -32,13 +37,70 @@ JsonArray schedulesarray = schedulesjson.to<JsonArray>();
 DynamicJsonDocument valvesjson(1024);
 JsonArray valvesarray = valvesjson.to<JsonArray>();
 
+boolean CheckDay(JsonObject daystotest) {
+  // Works, but it's not clean... I know.
+  if(weekday() == 1) {
+    if(daystotest["sunday"]) {
+      return true;
+    }
+    return false; 
+  }
+  if(weekday() == 2) {
+    if(daystotest["monday"]) {
+      return true;
+    }
+    return false; 
+  }
+  if(weekday() == 3) {
+    if(daystotest["tuesday"]) {
+      return true;
+    }
+    return false; 
+  }
+  if(weekday() == 4) {
+    if(daystotest["wednesdat"]) {
+      return true;
+    }
+    return false; 
+  }
+  if(weekday() == 5) {
+    if(daystotest["thursday"]) {
+      return true;
+    }
+    return false; 
+  }
+  if(weekday() == 6) {
+    if(daystotest["friday"]) {
+      return true;
+    }
+    return false; 
+  }
+  if(weekday() == 7) {
+    if(daystotest["saturday"]) {
+      return true;
+    }
+    return false; 
+  }
+  return false;
+}
 
+boolean CheckHours(int starth, int startm, int endh, int endm) {
+  int minstart = starth * 60 + startm;
+  int minend = endh * 60 + endm;
+  int mincurrent = hour() * 60 + minute();
+  if(mincurrent >= minstart && mincurrent < minend) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
 
 void DeleteCycle(size_t idtodelete) {
   File schedules = SPIFFS.open("/schedules.json", "r");
 
   if(schedules && schedules.size()) {
-    
+    schedulesjson.clear();
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     schedules.close();
     Serial.println(err.c_str());
@@ -61,7 +123,6 @@ void DeleteCycle(size_t idtodelete) {
       }
       schedules = SPIFFS.open("/schedules.json", "w");
       serializeJson(schedulesjson, schedules);
-      schedulesjson.clear();
       schedules.close();   
     } 
   }
@@ -74,7 +135,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   File schedules = SPIFFS.open("/schedules.json", "r");
 
   if(schedules) {
-
+    schedulesjson.clear();
     DeserializationError err = deserializeJson(schedulesjson, schedules);
     schedules.close();
     Serial.println(err.c_str());
@@ -95,6 +156,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
       schedule["Minstop"] = endm;
       schedule["daysActive"] = daysjson;
       schedule["temporary"] = temp ? true : false;
+      schedule["state"] = false;
 
       /* DEBUG
       Serial.println("Valeur de schedulesjson : ");
@@ -109,7 +171,6 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
       
       schedules = SPIFFS.open("/schedules.json", "w");
       serializeJson(schedulesjson, schedules);
-      schedulesjson.clear();
       schedules.close();   
     } 
     
@@ -123,7 +184,7 @@ void DeleteValve(size_t idtodelete) {
   File valves = SPIFFS.open("/valves.json", "r");
 
   if(valves && valves.size()) {
-    
+    valvesjson.clear();
     DeserializationError err = deserializeJson(valvesjson, valves);
     valves.close();
     Serial.println(err.c_str());
@@ -145,8 +206,7 @@ void DeleteValve(size_t idtodelete) {
       }
       
       valves = SPIFFS.open("/valves.json", "w");
-      serializeJson(valvesjson, valves);
-      valvesjson.clear(); 
+      serializeJson(valvesjson, valves); 
       valves.close();
     } 
   }
@@ -161,6 +221,7 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
   File valves = SPIFFS.open("/valves.json", "r");
 
   if(valves) {
+    valvesjson.clear();
     DeserializationError err = deserializeJson(valvesjson, valves);
     valves.close();
     Serial.println(err.c_str());
@@ -209,7 +270,6 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
 
       valves = SPIFFS.open("/valves.json", "w");
       serializeJson(valvesjson, valves);
-      valvesjson.clear();
       valves.close();
     } 
   }
@@ -221,105 +281,52 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
 
 void StartValve(int id_ev) {
   boolean success = false;
-  File valves = SPIFFS.open("/valves.json", "r");
-  if(valves && valves.size()) {
-    DeserializationError err = deserializeJson(valvesjson, valves);
-    valves.close();
-    if (err) {
-      Serial.print(F("deserializeJson() failed with code "));
-      Serial.println(err.c_str());
-    }
-    else {
+  boolean temporary = false;
+  String test = valvesarray[0]["name"];
+  if(test != "null") {
       for(JsonObject loop : valvesarray) {
         String id = loop["id_ev"];
         if(id.toInt() == id_ev) {
-          String name = loop["name"];
-          String type = loop["type"];
-          if(type.toInt() == 0) {
-            String startpin = loop["startpin"];
-            digitalWrite(startpin.toInt(), HIGH);
-            success = true;
-          }
-          else if(type.toInt() == 1) {
-            String starturl = loop["starturl"];
-            Serial.println("Vanne distante...");
-            success = true;
-          }
-          else if(type.toInt() == 2) {
-            String Hpin1 = loop["Hpin1"];
-            String Hpin2 = loop["Hpin2"];
-            if(invertHbridgelogic) {
-              digitalWrite(Hpin1.toInt(), LOW);
-              digitalWrite(Hpin2.toInt(), HIGH);
+          boolean started = loop["state"];
+          if(!started) {
+            loop["state"] = true;
+            String name = loop["name"];
+            String type = loop["type"];
+            if(type.toInt() == 0) {
+              String startpin = loop["startpin"];
+              digitalWrite(startpin.toInt(), HIGH);
+              success = true;
             }
-            else {
-              digitalWrite(Hpin1.toInt(), HIGH);
-              digitalWrite(Hpin2.toInt(), LOW);
+            else if(type.toInt() == 1) {
+              String url = loop["starturl"];
+              HTTPClient http;
+              http.begin(url);
+              int httpCode = http.GET();
+              if(httpCode == 200 || httpCode == 204) {
+                success = true;
+              }
+              http.end();
             }
-            success = true;
-          }
-          else {
-            return;
-          }
-          
-        }
-      }
-      if(success) {
-        if(ActiveRelay) {
-          digitalWrite(ActiveRelayPin, HIGH);
-        }
-        // Do what you want here
-        return;
-      }
-    }
-  }
-  else {
-    return;
-  }
-} 
+            else if(type.toInt() == 2) {
+              String Hpin1 = loop["Hpin1"];
+              String Hpin2 = loop["Hpin2"];
+              if(invertHbridgelogic) {
+                digitalWrite(Hpin1.toInt(), LOW);
+                digitalWrite(Hpin2.toInt(), HIGH);
+              }
+              else {
 
-void StopValve(int id_ev) {
-  boolean success = false;
-  File valves = SPIFFS.open("/valves.json", "r");
-  if(valves && valves.size()) {
-    DeserializationError err = deserializeJson(valvesjson, valves);
-    valves.close();
-    if (err) {
-      Serial.print(F("deserializeJson() failed with code "));
-      Serial.println(err.c_str());
-    }
-    else {
-      for(JsonObject loop : valvesarray) {
-        String id = loop["id_ev"];
-        if(id.toInt() == id_ev) {
-          String name = loop["name"];
-          String type = loop["type"];
-          if(type.toInt() == 0) {
-            String startpin = loop["startpin"];
-            digitalWrite(startpin.toInt(), LOW);
-            success = true;
-          }
-          else if(type.toInt() == 1) {
-            String stopurl = loop["stopurl"];
-            Serial.println("Vanne distante...");
-            success = true;
-          }
-          else if(type.toInt() == 2) {
-            String Hpin1 = loop["Hpin1"];
-            String Hpin2 = loop["Hpin2"];
-            if(invertHbridgelogic) {
-              digitalWrite(Hpin1.toInt(), HIGH);
-              digitalWrite(Hpin2.toInt(), LOW);
+                digitalWrite(Hpin1.toInt(), HIGH);
+                digitalWrite(Hpin2.toInt(), LOW);
+              }
+              success = true;
             }
             else {
-              digitalWrite(Hpin1.toInt(), LOW);
-              digitalWrite(Hpin2.toInt(), HIGH);
+              return;
             }
-            
-            success = true;
           }
           else {
-            return;
+            success = true;
           }  
         }
       }
@@ -327,9 +334,80 @@ void StopValve(int id_ev) {
         // Do what you want here
         return;
       }
-    }
+      else {
+        // Do what you want here
+        return;
+      }
+    
   }
   else {
+    Serial.println("Error valvesjson.");
+    return;
+  }
+} 
+
+void StopValve(int id_ev) {
+  boolean success = false;
+  boolean temporary = false;
+  String test = valvesarray[0]["name"];
+  if(test != "null") {
+      for(JsonObject loop : valvesarray) {
+        String id = loop["id_ev"];
+        if(id.toInt() == id_ev) {
+          String started = loop["state"];
+          if(started) {
+            loop["state"] = false;
+            String name = loop["name"];
+            String type = loop["type"];
+            if(type.toInt() == 0) {
+              String startpin = loop["startpin"];
+              digitalWrite(startpin.toInt(), LOW);
+              success = true;
+            }
+            else if(type.toInt() == 1) {
+              String url = loop["stopurl"];
+              HTTPClient http;
+              http.begin(url);
+              int httpCode = http.GET();
+              if(httpCode == 200 || httpCode == 204) {
+                success = true;
+              }
+              http.end();
+            }
+            else if(type.toInt() == 2) {
+              String Hpin1 = loop["Hpin1"];
+              String Hpin2 = loop["Hpin2"];
+              if(invertHbridgelogic) {
+                digitalWrite(Hpin1.toInt(), HIGH);
+                digitalWrite(Hpin2.toInt(), LOW);
+              }
+              else {
+                digitalWrite(Hpin1.toInt(), LOW);
+                digitalWrite(Hpin2.toInt(), HIGH);
+              }
+              success = true;
+            }
+            else {
+              return;
+            }
+            
+          }
+          else {
+            success = true;
+          }
+        }
+      }
+      if(success) {
+        // Do what you want here
+        return;
+      }
+      else {
+        // Do what you want here
+        return;
+      }  
+  }
+  else {
+    Serial.println("Error valvesjson.");
     return;
   }
 } 
@@ -342,7 +420,8 @@ void setup() {
   Serial.println();
 
   // RTC            
-  myRTC.begin();      
+  myRTC.begin();
+  alarm = now() + checkcycleinterval;      
   // setTime(13, 17, 0, 19, 5, 2020);   
   // myRTC.set(now());                     //set the RTC from the system time
   setSyncProvider(myRTC.get);
@@ -390,6 +469,22 @@ void setup() {
 
   // SPIFFS
   SPIFFS.begin();
+
+  File schedules = SPIFFS.open("/schedules.json", "r");
+  DeserializationError err = deserializeJson(schedulesjson, schedules);
+  if(err) {
+    Serial.println("Erreur deserialization");
+  }
+  schedules.close();
+
+  File valves = SPIFFS.open("/valves.json", "r");
+  DeserializationError err2 = deserializeJson(valvesjson, valves);
+  if(err2) {
+    Serial.println("Erreur deserialization");
+  }
+  schedules.close();
+
+
     /* A garder au cas où pour tester :)
       File schedules = SPIFFS.open("/schedules.json", "r");
       String text;
@@ -436,11 +531,15 @@ void setup() {
   });
 
   server.on("/valves.json", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/valves.json", "application/json");
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    serializeJson(valvesjson, *response);
+    request->send(response);
   });
 
   server.on("/schedules.json", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/schedules.json", "application/json");
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    serializeJson(schedulesjson, *response);
+    request->send(response);
   });
 
   server.on("/DeleteCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -574,8 +673,75 @@ void setup() {
   // StartValve(3); (TEST !!!)
 }
 
-void loop() {
+void CheckCycles() {
+  String test = schedulesarray[0]["name"];
+  if(test != "null") {
 
+    for (JsonObject loop : schedulesarray) {
+      delay(100);
+      JsonObject days = loop["daysActive"];
+      int id_ev = loop["id_ev"];
+      int id_prog = loop["id_prog"];
+      int starth = loop["Hourstart"];
+      int startm = loop["Minstart"];
+      int endh = loop["Hourstop"];
+      int endm = loop["Minstop"];
+      boolean state = loop["state"];
+      boolean temp = loop["temporary"];
+      if(CheckDay(days)) {
+        if(CheckHours(starth, startm, endh, endm)) {
+          if(state) {
+            Serial.println("Valve already started, cycle : " + String(id_prog));
+          }
+          else {
+            Serial.println("Starting valve, cycle : " + String(id_prog));
+            loop["state"] = true;
+            StartValve(id_ev);
+          }
+        }
+        else {    
+          if(state) {
+            Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
+            loop["state"] = false;
+            StopValve(id_ev);
+          }
+          else {
+            Serial.println("Valve already stopped, cycle : " + String(id_prog));
+          }
+        }
+      }
+      else {
+        
+        if(state) {
+          Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
+          loop["state"] = false;
+          if(temp) {
+            DeleteCycle(id_prog);
+          }
+          StopValve(id_ev);
+          }
+        else {
+          Serial.println("Valve already stopped, cycle : " + String(id_prog));
+        }
+      }
+    }
+  }
+  else {
+    Serial.println("Aucun cycle n'est dans le fichier ou problème de lecture.");
+  }
+  
+
+}
+
+void loop() {
+  /*
+  if(now() >= alarm) {
+    alarm = now() + checkcycleinterval;
+    CheckCycles();
+  }
+  */
+  CheckCycles();
+  delay(5000);
 }
 
 
