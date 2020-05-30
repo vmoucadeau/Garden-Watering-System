@@ -25,7 +25,7 @@ float celsius;
 AsyncWebServer server(80);
 
 DS3232RTC myRTC(false);
-const int checkcycleinterval = 10;
+const int checkcycleinterval = 15;
 long alarm;
 
 boolean initated = false;
@@ -690,14 +690,12 @@ void CheckCycles() {
 }
 
 void loop() {
-  /*
+  
   if(now() >= alarm) {
     alarm = now() + checkcycleinterval;
     CheckCycles();
   }
-  */
-  CheckCycles();
-  delay(5000);
+  
 }
 
 
