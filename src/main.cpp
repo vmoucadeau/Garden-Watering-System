@@ -96,199 +96,15 @@ boolean CheckHours(int starth, int startm, int endh, int endm) {
   }
 }
 
-void DeleteCycle(size_t idtodelete) {
-  File schedules = SPIFFS.open("/schedules.json", "r");
-
-  if(schedules && schedules.size()) {
-    schedulesjson.clear();
-    DeserializationError err = deserializeJson(schedulesjson, schedules);
-    schedules.close();
-    Serial.println(err.c_str());
-    if (err) {
-      Serial.print(F("deserializeJson() failed with code "));
-      Serial.println(err.c_str());
-    }
-    else {
-      schedulesjson.remove(idtodelete);
-      int i = 0;
-      for(JsonObject loop : schedulesarray) {
-        loop["id_prog"] = i;
-        /* DEBUG
-          String id = schedulesjson[i]["id_prog"];
-          String name = schedulesjson[i]["name"];
-          Serial.println(name + " : " + id);
-        */
-        i++;
-        
-      }
-      schedules = SPIFFS.open("/schedules.json", "w");
-      serializeJson(schedulesjson, schedules);
-      schedules.close();   
-    } 
-  }
-  else {
-    Serial.println("Impossible de lire le fichier.");
-  }
-}
-
-void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, int temp) {
-  File schedules = SPIFFS.open("/schedules.json", "r");
-
-  if(schedules) {
-    schedulesjson.clear();
-    DeserializationError err = deserializeJson(schedulesjson, schedules);
-    schedules.close();
-    Serial.println(err.c_str());
-    if (err) {
-      Serial.print(F("deserializeJson() failed with code "));
-      Serial.println(err.c_str());
-    }
-    else {
-    
-      int id_prog = schedulesjson.size();
-      JsonObject schedule = schedulesarray.createNestedObject();
-      schedule["name"] = name;
-      schedule["id_ev"] = id_ev;
-      schedule["id_prog"] = id_prog;
-      schedule["Hourstart"] = starth;
-      schedule["Minstart"] = startm;
-      schedule["Hourstop"] = endh;
-      schedule["Minstop"] = endm;
-      schedule["daysActive"] = daysjson;
-      schedule["temporary"] = temp ? true : false;
-      schedule["state"] = false;
-
-      /* DEBUG
-      Serial.println("Valeur de schedulesjson : ");
-      serializeJsonPretty(schedulesjson, Serial);
-      Serial.println(" ");
-      for(JsonObject loop : schedulesarray) {
-        String id = loop["id_prog"];
-        String name = loop["name"];
-        Serial.println(name + " : " + id);
-      }
-      */
-      
-      schedules = SPIFFS.open("/schedules.json", "w");
-      serializeJson(schedulesjson, schedules);
-      schedules.close();   
-    } 
-    
-  }
-  else {
-    Serial.println("Impossible de lire le fichier.");
-  }
-}
-
-void DeleteValve(size_t idtodelete) {
-  File valves = SPIFFS.open("/valves.json", "r");
-
-  if(valves && valves.size()) {
-    valvesjson.clear();
-    DeserializationError err = deserializeJson(valvesjson, valves);
-    valves.close();
-    Serial.println(err.c_str());
-    if (err) {
-      Serial.print(F("deserializeJson() failed with code "));
-      Serial.println(err.c_str());
-    }
-    else {
-      valvesjson.remove(idtodelete);
-      int i = 0;
-      for(JsonObject loop : valvesarray) {
-        loop["id_ev"] = i;
-        /* DEBUG
-          String id = schedulesjson[i]["id_prog"];
-          String name = schedulesjson[i]["name"];
-          Serial.println(name + " : " + id);
-        */
-        i++;
-      }
-      
-      valves = SPIFFS.open("/valves.json", "w");
-      serializeJson(valvesjson, valves); 
-      valves.close();
-    } 
-  }
-  else {
-    Serial.println("Impossible de lire le fichier.");
-  }
-  
-  return;
-}
-
-void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, String starturl, String stopurl) {
-  File valves = SPIFFS.open("/valves.json", "r");
-
-  if(valves) {
-    valvesjson.clear();
-    DeserializationError err = deserializeJson(valvesjson, valves);
-    valves.close();
-    Serial.println(err.c_str());
-    
-    if (err) {
-      Serial.print(F("deserializeJson() failed with code "));
-      Serial.println(err.c_str());
-    }
-    
-    else {
-      int id_ev = valvesjson.size();
-      JsonObject valve = valvesarray.createNestedObject();
-      
-      valve["name"] = name;
-      valve["id_ev"] = id_ev;
-      
-      if(type == "local") {
-        valve["type"] = 0;
-        valve["startpin"] = startpin;
-      }
-      else if(type == "locallatching") {
-        valve["type"] = 2;
-        valve["Hpin1"] = Hpin1;
-        valve["Hpin2"] = Hpin2;
-      }
-      else if(type == "distante") {
-        valve["type"] = 1;
-        valve["starturl"] = starturl;
-        valve["stopurl"] = stopurl;
-      }
-      else {
-        return;
-      }
-      valve["state"] = false;
-      
-      /* DEBUG
-      Serial.println("Valeur de valvesjson : ");
-      serializeJsonPretty(valvesjson, Serial);
-      Serial.println(" ");
-      for(JsonObject loop : valvesarray) {
-        String id = loop["id_ev"];
-        String name = loop["name"];
-        Serial.println(name + " : " + id);
-      }
-      */
-
-      valves = SPIFFS.open("/valves.json", "w");
-      serializeJson(valvesjson, valves);
-      valves.close();
-    } 
-  }
-  else {
-    Serial.println("Impossible de lire le fichier.");
-  }
-  return;
-}
-
 void StartValve(int id_ev) {
   boolean success = false;
-  boolean temporary = false;
   String test = valvesarray[0]["name"];
   if(test != "null") {
       for(JsonObject loop : valvesarray) {
         String id = loop["id_ev"];
         if(id.toInt() == id_ev) {
-          boolean started = loop["state"];
-          if(!started) {
+          String started = loop["state"];
+          if(started == "false") {
             loop["state"] = true;
             String name = loop["name"];
             String type = loop["type"];
@@ -348,14 +164,13 @@ void StartValve(int id_ev) {
 
 void StopValve(int id_ev) {
   boolean success = false;
-  boolean temporary = false;
   String test = valvesarray[0]["name"];
   if(test != "null") {
       for(JsonObject loop : valvesarray) {
         String id = loop["id_ev"];
         if(id.toInt() == id_ev) {
           String started = loop["state"];
-          if(started) {
+          if(started == "true") {
             loop["state"] = false;
             String name = loop["name"];
             String type = loop["type"];
@@ -411,6 +226,148 @@ void StopValve(int id_ev) {
     return;
   }
 } 
+
+void DeleteCycle(size_t idtodelete) {
+  String test = schedulesjson[0]["name"];
+  if(test != "null") {
+    String state = schedulesjson[idtodelete]["state"];
+    if(state == "true") {
+      Serial.println("Stopping valve before deleting cycle.");
+      int valve = schedulesjson[idtodelete]["id_ev"];
+      StopValve(valve);
+    }
+    schedulesjson.remove(idtodelete);
+    int i = 0;
+    for(JsonObject loop : schedulesarray) {
+      loop["id_prog"] = i;
+      /* DEBUG
+          String id = schedulesjson[i]["id_prog"];
+          String name = schedulesjson[i]["name"];
+          Serial.println(name + " : " + id);
+        */
+      i++;
+    }
+    File schedules = SPIFFS.open("/schedules.json", "w");
+    serializeJson(schedulesjson, schedules);
+    schedules.close();   
+  }
+  else {
+    Serial.println("Impossible de lire le fichier.");
+  }
+}
+
+void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, int temp) { 
+  int id_prog = schedulesjson.size();
+  JsonObject schedule = schedulesarray.createNestedObject();
+  schedule["name"] = name;
+  schedule["id_ev"] = id_ev;
+  schedule["id_prog"] = id_prog;
+  schedule["Hourstart"] = starth;
+  schedule["Minstart"] = startm;
+  schedule["Hourstop"] = endh;
+  schedule["Minstop"] = endm;
+  schedule["daysActive"] = daysjson;
+  schedule["temporary"] = temp ? true : false;
+  schedule["state"] = false;
+
+  /* DEBUG
+      Serial.println("Valeur de schedulesjson : ");
+      serializeJsonPretty(schedulesjson, Serial);
+      Serial.println(" ");
+      for(JsonObject loop : schedulesarray) {
+        String id = loop["id_prog"];
+        String name = loop["name"];
+        Serial.println(name + " : " + id);
+      }
+      */
+      
+  File schedules = SPIFFS.open("/schedules.json", "w");
+  serializeJson(schedulesjson, schedules);
+  schedules.close(); 
+  return;  
+}
+
+void DeleteValve(size_t idtodelete) {
+  String test = valvesjson[0]["name"];
+  if(test != "null") {
+    String state = valvesjson[idtodelete]["state"];
+    if(state == "true") {
+      Serial.println("Stopping valve before deleting valve.");
+      StopValve(idtodelete);
+    }
+    for(JsonObject valvecycle : schedulesarray) {
+      if(valvecycle["id_ev"] == idtodelete) {
+        int idcycle = valvecycle["id_prog"];
+        String cyclename = valvecycle["name"];
+        Serial.println("Deleting valve cycle : " + cyclename);
+        DeleteCycle(idcycle);
+      }
+    }
+    valvesjson.remove(idtodelete);
+    int i = 0;
+    for(JsonObject loop : valvesarray) {
+      loop["id_ev"] = i;
+      /* DEBUG
+        String id = schedulesjson[i]["id_prog"];
+        String name = schedulesjson[i]["name"];
+        Serial.println(name + " : " + id);
+      */
+      i++;
+    }
+    File valves = SPIFFS.open("/valves.json", "w");
+    serializeJson(valvesjson, valves); 
+    valves.close(); 
+  }
+  else {
+    Serial.println("Erreur : DeleteValve");
+  } 
+  return;
+}
+
+void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, String starturl, String stopurl) {
+  int id_ev = valvesjson.size();
+  JsonObject valve = valvesarray.createNestedObject();
+      
+  valve["name"] = name;
+  valve["id_ev"] = id_ev;
+      
+  if(type == "local") {
+    valve["type"] = 0;
+    valve["startpin"] = startpin;
+  }
+  else if(type == "locallatching") {
+    valve["type"] = 2;
+    valve["Hpin1"] = Hpin1;
+    valve["Hpin2"] = Hpin2;
+  }
+  else if(type == "distante") {
+    valve["type"] = 1;
+    valve["starturl"] = starturl;
+    valve["stopurl"] = stopurl;
+  }
+  else {
+    return;
+  }
+  valve["state"] = false;
+      
+  /* DEBUG
+    Serial.println("Valeur de valvesjson : ");
+    serializeJsonPretty(valvesjson, Serial);
+    Serial.println(" ");
+    for(JsonObject loop : valvesarray) {
+      String id = loop["id_ev"];
+      String name = loop["name"];
+      Serial.println(name + " : " + id);
+    }
+  */
+
+  File valves = SPIFFS.open("/valves.json", "w");
+  serializeJson(valvesjson, valves);
+  valves.close();
+  return;
+}
+
+
 
 
 void setup() {
@@ -687,22 +644,22 @@ void CheckCycles() {
       int endh = loop["Hourstop"];
       int endm = loop["Minstop"];
       boolean state = loop["state"];
-      boolean temp = loop["temporary"];
+      String temp = loop["temporary"];
       if(CheckDay(days)) {
         if(CheckHours(starth, startm, endh, endm)) {
+          loop["state"] = true;
           if(state) {
             Serial.println("Valve already started, cycle : " + String(id_prog));
           }
           else {
             Serial.println("Starting valve, cycle : " + String(id_prog));
-            loop["state"] = true;
             StartValve(id_ev);
           }
         }
         else {    
+          loop["state"] = false;
           if(state) {
             Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
-            loop["state"] = false;
             StopValve(id_ev);
           }
           else {
@@ -711,11 +668,10 @@ void CheckCycles() {
         }
       }
       else {
-        
+        loop["state"] = false;
         if(state) {
           Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
-          loop["state"] = false;
-          if(temp) {
+          if(temp == "true") {
             DeleteCycle(id_prog);
           }
           StopValve(id_ev);
