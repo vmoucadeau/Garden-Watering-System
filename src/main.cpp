@@ -96,7 +96,7 @@ boolean CheckHours(int starth, int startm, int endh, int endm) {
   }
 }
 
-void StartValve(int id_ev) {
+boolean StartValve(int id_ev) {
   boolean success = false;
   String test = valvesarray[0]["name"];
   if(test != "null") {
@@ -105,7 +105,6 @@ void StartValve(int id_ev) {
         if(id.toInt() == id_ev) {
           String started = loop["state"];
           if(started == "false") {
-            loop["state"] = true;
             String name = loop["name"];
             String type = loop["type"];
             if(type.toInt() == 0) {
@@ -139,8 +138,8 @@ void StartValve(int id_ev) {
               digitalWrite(Hpin2.toInt(), LOW);
               success = true;
             }
-            else {
-              return;
+            if(success) {
+              loop["state"] = true;
             }
           }
           else {
@@ -148,23 +147,14 @@ void StartValve(int id_ev) {
           }  
         }
       }
-      if(success) {
-        // Do what you want here
-        return;
-      }
-      else {
-        // Do what you want here
-        return;
-      }
-    
   }
   else {
     Serial.println("Error valvesjson.");
-    return;
   }
+  return success;
 } 
 
-void StopValve(int id_ev) {
+boolean StopValve(int id_ev) {
   boolean success = false;
   String test = valvesarray[0]["name"];
   if(test != "null") {
@@ -173,7 +163,6 @@ void StopValve(int id_ev) {
         if(id.toInt() == id_ev) {
           String started = loop["state"];
           if(started == "true") {
-            loop["state"] = false;
             String name = loop["name"];
             String type = loop["type"];
             if(type.toInt() == 0) {
@@ -207,39 +196,33 @@ void StopValve(int id_ev) {
               digitalWrite(Hpin2.toInt(), LOW);
               success = true;
             }
-            else {
-              return;
+            if(success) {
+              loop["state"] = false;
             }
-            
           }
           else {
             success = true;
           }
         }
       }
-      if(success) {
-        // Do what you want here
-        return;
-      }
-      else {
-        // Do what you want here
-        return;
-      }  
   }
   else {
     Serial.println("Error valvesjson.");
-    return;
   }
+  return success;
 } 
 
 void DeleteCycle(size_t idtodelete) {
   String test = schedulesjson[0]["name"];
   if(test != "null") {
-    String state = schedulesjson[idtodelete]["state"];
+    int id_ev = schedulesjson[idtodelete]["id_ev"];
+    String state = valvesjson[id_ev]["state"];
     if(state == "true") {
       Serial.println("Stopping valve before deleting cycle.");
-      int valve = schedulesjson[idtodelete]["id_ev"];
-      StopValve(valve);
+      if(!StopValve(id_ev)) {
+        Serial.println("Can't stop valve.");
+        return;
+      }
     }
     schedulesjson.remove(idtodelete);
     int i = 0;
@@ -255,6 +238,7 @@ void DeleteCycle(size_t idtodelete) {
     File schedules = SPIFFS.open("/schedules.json", "w");
     serializeJson(schedulesjson, schedules);
     schedules.close();   
+    Serial.println("Cycle deleted.");
   }
   else {
     Serial.println("Impossible de lire le fichier.");
@@ -298,7 +282,10 @@ void DeleteValve(size_t idtodelete) {
     String state = valvesjson[idtodelete]["state"];
     if(state == "true") {
       Serial.println("Stopping valve before deleting valve.");
-      StopValve(idtodelete);
+      if(!StopValve(idtodelete)) {
+        Serial.println("Can't stop valve.");
+        return;
+      }
     }
     for(JsonObject valvecycle : schedulesarray) {
       if(valvecycle["id_ev"] == idtodelete) {
@@ -384,7 +371,7 @@ void setup() {
   // RTC            
   myRTC.begin();
   alarm = now() + checkcycleinterval;      
-  // setTime(13, 17, 0, 19, 5, 2020);   
+  // setTime(22, 21, 0, 31, 5, 2020);   
   // myRTC.set(now());                     //set the RTC from the system time
   setSyncProvider(myRTC.get);
 
@@ -652,20 +639,26 @@ void CheckCycles() {
       String temp = loop["temporary"];
       if(CheckDay(days)) {
         if(CheckHours(starth, startm, endh, endm)) {
-          loop["state"] = true;
+          // loop["state"] = true;
           if(state) {
             Serial.println("Valve already started, cycle : " + String(id_prog));
           }
           else {
             Serial.println("Starting valve, cycle : " + String(id_prog));
-            StartValve(id_ev);
+            if(StartValve(id_ev)) {
+              loop["state"] = true;
+            }
           }
         }
-        else {    
-          loop["state"] = false;
+        else {   
           if(state) {
             Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
-            StopValve(id_ev);
+            if(temp == "true") {
+            DeleteCycle(id_prog);
+            }
+            else if(StopValve(id_ev)) {
+              loop["state"] = false;
+            }
           }
           else {
             Serial.println("Valve already stopped, cycle : " + String(id_prog));
@@ -673,14 +666,15 @@ void CheckCycles() {
         }
       }
       else {
-        loop["state"] = false;
         if(state) {
-          Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
+          Serial.println("Stopping cycle (day not valid) : " + String(id_prog));
           if(temp == "true") {
             DeleteCycle(id_prog);
           }
-          StopValve(id_ev);
+          else if(StopValve(id_ev)) {
+            loop["state"] = false;
           }
+        }
         else {
           Serial.println("Valve already stopped, cycle : " + String(id_prog));
         }
