@@ -245,7 +245,7 @@ void DeleteCycle(size_t idtodelete) {
   }
 }
 
-void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, int temp) { 
+void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, boolean temp) { 
   int id_prog = schedulesjson.size();
   JsonObject schedule = schedulesarray.createNestedObject();
   schedule["name"] = name;
@@ -256,7 +256,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   schedule["Hourstop"] = endh;
   schedule["Minstop"] = endm;
   schedule["daysActive"] = daysjson;
-  schedule["temporary"] = temp ? true : false;
+  schedule["temporary"] = temp;
   schedule["state"] = false;
 
   /* DEBUG
@@ -518,7 +518,8 @@ void setup() {
       int saturday = request->getParam("saturday", true)->value().toInt();
       int sunday = request->getParam("sunday", true)->value().toInt();
 
-      int temporary = request->getParam("temporary", true)->value().toInt();
+      String temporary = request->getParam("temporary", true)->value();
+      boolean temp = (temporary == "true") ? true : false;
 
       StaticJsonDocument<600> doc;
       JsonObject days = doc.to<JsonObject>();
@@ -543,7 +544,7 @@ void setup() {
       serializeJsonPretty(days, Serial);
       */
 
-      AddCycle(name, id_ev, starth, startm, endh, endm, days, temporary);
+      AddCycle(name, id_ev, starth, startm, endh, endm, days, temp);
 
     }
     
