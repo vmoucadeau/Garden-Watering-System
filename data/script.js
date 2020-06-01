@@ -3,6 +3,11 @@ var vlistdisplayed = false;
 
 // ----------------------------------------------------------------- TOOLS FUNCTIONS
 
+// Used to add minutes to a Date object.
+var add_minutes =  function (dt, minutes) {
+    return new Date(dt.getTime() + minutes*60000);
+}
+
 // Warn if overriding existing method
 if(Array.prototype.equals)
     console.warn("Overriding existing Array.prototype.equals. Possible causes: New API defines the method, there's a framework conflict or you've got double inclusions in your code.");
@@ -67,8 +72,6 @@ function getDate() {
 
 }
 
-setInterval(getDate, 3000);
-
 function setDay() {
     monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
@@ -128,10 +131,10 @@ function InitValves(reset) {
                     type = "Inconnu";
                 }
                 if (obj.state == true) {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <small>Démarrage manuel : <input type='number' id='manustart" + obj.id_ev + "' value='1' min='1'> minutes <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></small><br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <p>Démarrage manuel : <input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p><br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 }
                 else {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <small>Démarrage manuel : <input type='number' id='manustart" + obj.id_ev + "' value='1' min='1'> minutes <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></small> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <p>Démarrage manuel : <input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 }
                 
                 document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
@@ -400,7 +403,16 @@ $( "#cyclesave" ).click(function() {
     $('#ModalCreateSchedule').modal('hide');
 });
 
+function TemporaryCycle(id_ev) {
 
+    var minutes = $("#manustart" + id_ev).val();
+    var datestart = new Date();
+    var datestop = add_minutes(datestart, minutes);
+    var daystemp = [1, 1, 1, 1, 1, 1, 1];
+    if(window.confirm("Voulez-vous lancer un cycle temporaire pendant " + minutes + " minutes pour la vanne " + id_ev + " ?")) {
+        AddCycle("Cycle temporaire", id_ev, datestart, datestop, daystemp, true);
+    }
+}
 
 // ----------------------------------------------------------------- OTHERS FUNCTIONS
 
@@ -409,3 +421,5 @@ $(document).ready(function() {
     InitValves();
     InitCycles();
 });
+
+setInterval(getDate, 3000);
