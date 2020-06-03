@@ -25,6 +25,6 @@ Everything has been coded on PlatformIO for Visual Studio Code, a very good alte
 
 **A noter :**
 
-Le programme est loin d'être terminé, je l'ai commencé il y a pas très longtemps et je compte ajouter plusieurs fonctionnalités à l'avenir (ex : pluviomètre)
+Le programme est loin d'être terminé, je l'ai commencé récemment et je compte ajouter plusieurs fonctionnalités à l'avenir (ex : pluviomètre)
 Il n'est pas du tout commenté/documenté pour l'instant... Il faut qu'il soit fonctionnel pour cet été (indispensable pour mon jardin :) )
 Tout a été codé sur PlatformIO pour Visual Studio Code, une très bonne alternative à l'IDE Arduino je trouve.
