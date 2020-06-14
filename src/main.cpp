@@ -12,9 +12,6 @@
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 
-const int ActiveRelayPin = 15;
-boolean ActiveRelay = true;
-
 boolean invertHbridgelogic = false;
 
 const char *ssid = "Arrosage";
@@ -36,6 +33,10 @@ JsonArray schedulesarray = schedulesjson.to<JsonArray>();
 
 DynamicJsonDocument valvesjson(1024);
 JsonArray valvesarray = valvesjson.to<JsonArray>();
+
+void DebugSerial(String msg) {
+  Serial.println("[DEBUG]: " + msg);
+}
 
 boolean CheckDay(JsonObject daystotest) {
   // Works, but it's not clean... I know.
@@ -149,12 +150,12 @@ boolean StartValve(int id_ev) {
       }
   }
   else {
-    Serial.println("Error valvesjson.");
+    DebugSerial("valvesjson Error.");
   }
   return success;
 } 
 
-boolean StopValve(int id_ev) {
+boolean StopValve(int id_ev, boolean forcestop = false) {
   boolean success = false;
   String test = valvesarray[0]["name"];
   if(test != "null") {
@@ -162,7 +163,7 @@ boolean StopValve(int id_ev) {
         String id = loop["id_ev"];
         if(id.toInt() == id_ev) {
           String started = loop["state"];
-          if(started == "true") {
+          if(started == "true" || forcestop) {
             String name = loop["name"];
             String type = loop["type"];
             if(type.toInt() == 0) {
@@ -375,15 +376,9 @@ void setup() {
   // myRTC.set(now());                     //set the RTC from the system time
   setSyncProvider(myRTC.get);
 
-  // ActiveRelay
-  if(ActiveRelay) {
-    Serial.println("Relais activé.");
-    pinMode(ActiveRelayPin, OUTPUT);
-    digitalWrite(ActiveRelayPin, LOW);
-  }
 
   // Pins init, for now, you need to replace with your pins if you don't have an ESP12E
-  // With an ESP12E, you can control 6 classic valves with relays localy and 3 latching valves (with L293D)
+  // With an ESP12E, you can control 4 classic valves with relays localy and 2 latching valves (with L293D)
   pinMode(16, OUTPUT);
   pinMode(0, OUTPUT);
   pinMode(2, OUTPUT);
@@ -429,6 +424,13 @@ void setup() {
     Serial.println("Erreur deserialization");
   }
   schedules.close();
+
+  for (JsonObject loop : valvesarray) {
+    String id_ev = loop["id_ev"];
+    String name = loop["name"];
+    DebugSerial("Stopping valve : " + name);
+    StopValve(id_ev.toInt(), true);
+  }
 
   // Web Server
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
