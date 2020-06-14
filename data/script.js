@@ -72,6 +72,31 @@ function getDate() {
 
 }
 
+function setDate() {
+    var date = new Date($('#datetoset').val());
+    var time = $('#hourtoset').val().split(':')
+    // +2 for GMT+2, it's not good...
+    date.setHours(parseInt(time[0], 10) + 2, parseInt(time[1], 10))
+    
+    
+    $.post("SetRTCTime", {
+        timestamp: date.getTime()/1000
+    })
+    .done(function() {
+        setTimeout(getDate(), 1000);
+        alert("Opération effectuée")
+        $("#ModalSetTime").modal("hide");
+    })
+    .fail(function() {
+        alert("Il y a eu un problème lors de l'envoi des données.")
+    });
+    
+}
+
+$("#timesave").click(function() {
+    setDate();
+})
+
 function setDay() {
     monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
 
@@ -416,10 +441,20 @@ function TemporaryCycle(id_ev) {
 
 // ----------------------------------------------------------------- OTHERS FUNCTIONS
 
+
+
 $(document).ready(function() {
     getDate();
     InitValves();
     InitCycles();
+    $("#showsettime").click(function() {
+        var date = new Date();
+        var currentDate = date.toISOString().slice(0,10);
+        var currentTime = date.getHours() + ':' + date.getMinutes();
+    
+        document.getElementById('datetoset').value = currentDate;
+        document.getElementById('hourtoset').value = currentTime;
+    })
 });
 
 setInterval(getDate, 3000);

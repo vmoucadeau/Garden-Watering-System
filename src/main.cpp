@@ -400,16 +400,13 @@ void setup() {
   if (timeStatus() != timeSet) {
     Serial.println("Fail");
   }
-  else {
-    Serial.println("Success");
-  }
 
   // WiFi Hostpot
   Serial.print("Setting soft-AP ... ");
   boolean result = WiFi.softAP(ssid, password);
   if(result == true)
   {
-    Serial.println("Ready");
+    Serial.println("WiFi access point started");
   }
   else
   {
@@ -432,27 +429,6 @@ void setup() {
     Serial.println("Erreur deserialization");
   }
   schedules.close();
-
-
-    /* A garder au cas où pour tester :)
-      File schedules = SPIFFS.open("/schedules.json", "r");
-      String text;
-      if(schedules && schedules.size()) {
-        Serial.println("File Content:");
-
-        while (schedules.available()){
-            text += char(schedules.read());
-        }
-        schedules.close();
-        Serial.println("=====================================");
-        Serial.println(text);
-        Serial.println("=====================================");
-      }
-      else {
-        Serial.println("Impossible de lire le fichier.");
-      }
-
-    */
 
   // Web Server
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -491,6 +467,17 @@ void setup() {
     request->send(response);
   });
 
+  server.on("/SetRTCTime", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("timestamp", true)) {
+      int timestamp = request->getParam("timestamp", true)->value().toInt();
+      time_t timetoset = timestamp;
+      setTime(timetoset);   
+      delay(100);
+      myRTC.set(now());   
+    }
+    request->send(204);
+  });
+  
   server.on("/DeleteCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
