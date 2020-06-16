@@ -320,13 +320,35 @@ function InitCycles(reset) {
                                 var objschedule = dataschedules[i];
                                 
                                 if(objschedule.id_ev == objvalve.id_ev) {
-                                
+                                    var objdays = objschedule.daysActive;
+                                    var daysarray = []
+                                    if(objdays["monday"]) {
+                                        daysarray.push("Lundi");
+                                    }
+                                    if(objdays["tuesday"]) {
+                                        daysarray.push("Mardi");
+                                    }
+                                    if(objdays["wednesday"]) {
+                                        daysarray.push("Mercredi");
+                                    }
+                                    if(objdays["thursday"]) {
+                                        daysarray.push("Jeudi");
+                                    }
+                                    if(objdays["friday"]) {
+                                        daysarray.push("Vendredi");
+                                    }
+                                    if(objdays["saturday"]) {
+                                        daysarray.push("Samedi");
+                                    }
+                                    if(objdays["sunday"]) {
+                                        daysarray.push("Dimanche");
+                                    }
                                     if(!valvesdisplayed.includes(objvalve.id_ev)) {
                                         document.getElementById("cycles").innerHTML += "<div class=\"settingstitle\"> <h2 style=\"display: inline;\" class=\"tab_title\">Cycles (" + objvalve.name + ") :</h2> </div>";
                                         valvesdisplayed.push(objvalve.id_ev);
                                     }
                                     
-                                    document.getElementById("cycles").innerHTML += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + objschedule.id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p>  <p>Jour(s) :  </p> </a> </div>';
+                                    document.getElementById("cycles").innerHTML += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + objschedule.id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p>  <p>Jour(s) :  ' + daysarray.join(', ') + ' </p> </a> </div>';
                                     
                                 } 
                                 
@@ -441,7 +463,10 @@ function TemporaryCycle(id_ev) {
 
 // ----------------------------------------------------------------- OTHERS FUNCTIONS
 
-
+function refresh() {
+    getDate()
+    InitValves(true)
+}
 
 $(document).ready(function() {
     getDate();
@@ -457,4 +482,4 @@ $(document).ready(function() {
     })
 });
 
-setInterval(getDate, 3000);
+setInterval(refresh, 3000);
