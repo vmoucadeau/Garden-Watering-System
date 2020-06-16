@@ -156,10 +156,10 @@ function InitValves(reset) {
                     type = "Inconnu";
                 }
                 if (obj.state == true) {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <p>Démarrage manuel : <input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p><br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <p>Démarrage manuel : <br><input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p><br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 }
                 else {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <p>Démarrage manuel : <input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
+                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <p>Démarrage manuel : <br><input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 }
                 
                 document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
@@ -465,7 +465,6 @@ function TemporaryCycle(id_ev) {
 
 function refresh() {
     getDate()
-    InitValves(true)
 }
 
 $(document).ready(function() {
