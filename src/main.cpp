@@ -44,43 +44,36 @@ boolean CheckDay(JsonObject daystotest) {
     if(daystotest["sunday"]) {
       return true;
     }
-    return false; 
   }
   if(weekday() == 2) {
     if(daystotest["monday"]) {
       return true;
     }
-    return false; 
   }
   if(weekday() == 3) {
     if(daystotest["tuesday"]) {
       return true;
     }
-    return false; 
   }
   if(weekday() == 4) {
     if(daystotest["wednesdat"]) {
       return true;
     }
-    return false; 
   }
   if(weekday() == 5) {
     if(daystotest["thursday"]) {
       return true;
     }
-    return false; 
   }
   if(weekday() == 6) {
     if(daystotest["friday"]) {
       return true;
     }
-    return false; 
   }
   if(weekday() == 7) {
     if(daystotest["saturday"]) {
       return true;
     }
-    return false; 
   }
   return false;
 }
@@ -208,7 +201,7 @@ boolean StopValve(int id_ev, boolean forcestop = false) {
       }
   }
   else {
-    Serial.println("Error valvesjson.");
+    DebugSerial("Error - valvesjson");
   }
   return success;
 } 
@@ -219,9 +212,9 @@ void DeleteCycle(size_t idtodelete) {
     int id_ev = schedulesjson[idtodelete]["id_ev"];
     String state = valvesjson[id_ev]["state"];
     if(state == "true") {
-      Serial.println("Stopping valve before deleting cycle.");
-      if(!StopValve(id_ev)) {
-        Serial.println("Can't stop valve.");
+      DebugSerial("Stopping valve before deleting cycle.");
+      if(!StopValve(id_ev, true)) {
+        DebugSerial("Can't stop valve.");
         return;
       }
     }
@@ -229,20 +222,15 @@ void DeleteCycle(size_t idtodelete) {
     int i = 0;
     for(JsonObject loop : schedulesarray) {
       loop["id_prog"] = i;
-      /* DEBUG
-          String id = schedulesjson[i]["id_prog"];
-          String name = schedulesjson[i]["name"];
-          Serial.println(name + " : " + id);
-        */
       i++;
     }
     File schedules = SPIFFS.open("/schedules.json", "w");
     serializeJson(schedulesjson, schedules);
     schedules.close();   
-    Serial.println("Cycle deleted.");
+    DebugSerial("Cycle deleted.");
   }
   else {
-    Serial.println("Impossible de lire le fichier.");
+    DebugSerial("Impossible de lire le fichier.");
   }
 }
 
@@ -260,17 +248,6 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   schedule["temporary"] = temp;
   schedule["state"] = false;
 
-  /* DEBUG
-      Serial.println("Valeur de schedulesjson : ");
-      serializeJsonPretty(schedulesjson, Serial);
-      Serial.println(" ");
-      for(JsonObject loop : schedulesarray) {
-        String id = loop["id_prog"];
-        String name = loop["name"];
-        Serial.println(name + " : " + id);
-      }
-      */
-      
   File schedules = SPIFFS.open("/schedules.json", "w");
   serializeJson(schedulesjson, schedules);
   schedules.close(); 
@@ -282,9 +259,9 @@ void DeleteValve(size_t idtodelete) {
   if(test != "null") {
     String state = valvesjson[idtodelete]["state"];
     if(state == "true") {
-      Serial.println("Stopping valve before deleting valve.");
-      if(!StopValve(idtodelete)) {
-        Serial.println("Can't stop valve.");
+      DebugSerial("Stopping valve before deleting valve.");
+      if(!StopValve(idtodelete, true)) {
+        DebugSerial("Can't stop valve.");
         return;
       }
     }
@@ -292,7 +269,7 @@ void DeleteValve(size_t idtodelete) {
       if(valvecycle["id_ev"] == idtodelete) {
         int idcycle = valvecycle["id_prog"];
         String cyclename = valvecycle["name"];
-        Serial.println("Deleting valve cycle : " + cyclename);
+        DebugSerial("Deleting valve cycle : " + cyclename);
         DeleteCycle(idcycle);
       }
     }
@@ -300,11 +277,6 @@ void DeleteValve(size_t idtodelete) {
     int i = 0;
     for(JsonObject loop : valvesarray) {
       loop["id_ev"] = i;
-      /* DEBUG
-        String id = schedulesjson[i]["id_prog"];
-        String name = schedulesjson[i]["name"];
-        Serial.println(name + " : " + id);
-      */
       i++;
     }
     File valves = SPIFFS.open("/valves.json", "w");
@@ -312,7 +284,7 @@ void DeleteValve(size_t idtodelete) {
     valves.close(); 
   }
   else {
-    Serial.println("Erreur : DeleteValve");
+    DebugSerial("Erreur : DeleteValve");
   } 
   return;
 }
@@ -343,17 +315,6 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
   }
   valve["state"] = false;
       
-  /* DEBUG
-    Serial.println("Valeur de valvesjson : ");
-    serializeJsonPretty(valvesjson, Serial);
-    Serial.println(" ");
-    for(JsonObject loop : valvesarray) {
-      String id = loop["id_ev"];
-      String name = loop["name"];
-      Serial.println(name + " : " + id);
-    }
-  */
-
   File valves = SPIFFS.open("/valves.json", "w");
   serializeJson(valvesjson, valves);
   valves.close();
@@ -393,7 +354,7 @@ void setup() {
   digitalWrite(13, LOW);
 
   if (timeStatus() != timeSet) {
-    Serial.println("Fail");
+    DebugSerial("Fail");
   }
 
   // WiFi Hostpot
@@ -401,11 +362,11 @@ void setup() {
   boolean result = WiFi.softAP(ssid, password);
   if(result == true)
   {
-    Serial.println("WiFi access point started");
+    DebugSerial("WiFi access point started");
   }
   else
   {
-    Serial.println("Failed!");
+    DebugSerial("Failed!");
   }
 
   // SPIFFS
@@ -414,14 +375,14 @@ void setup() {
   File schedules = SPIFFS.open("/schedules.json", "r");
   DeserializationError err = deserializeJson(schedulesjson, schedules);
   if(err) {
-    Serial.println("Erreur deserialization");
+    DebugSerial("Erreur deserialization");
   }
   schedules.close();
 
   File valves = SPIFFS.open("/valves.json", "r");
   DeserializationError err2 = deserializeJson(valvesjson, valves);
   if(err2) {
-    Serial.println("Erreur deserialization");
+    DebugSerial("Erreur deserialization");
   }
   schedules.close();
 
@@ -483,7 +444,7 @@ void setup() {
   server.on("/DeleteCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
-      Serial.println("Cycle à supprimer : " + String(idtodelete));
+      DebugSerial("Cycle à supprimer : " + String(idtodelete));
       DeleteCycle(idtodelete);
     }
     request->send(204);
@@ -522,17 +483,6 @@ void setup() {
       days["sunday"] = sunday ? true : false;
 
 
-      /*
-      Serial.println("Valeur reçues : ");
-      Serial.println("Nom cycle : " + name);
-      Serial.println("Vanne : " + String(id_ev));
-      Serial.println("Temporaire : " + String(temporary));
-      Serial.println("Heure début : " + String(starth) + "h" + String(startm));
-      Serial.println("Heure fin : " + String(endh) + "h" + String(endm));
-      Serial.println("Jours : ");
-      serializeJsonPretty(days, Serial);
-      */
-
       AddCycle(name, id_ev, starth, startm, endh, endm, days, temp);
 
     }
@@ -543,7 +493,7 @@ void setup() {
   server.on("/DeleteValve", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
-      Serial.println("Vanne à supprimer : " + String(idtodelete));
+      DebugSerial("Vanne à supprimer : " + String(idtodelete));
       DeleteValve(idtodelete);
     }
     request->send(204);
@@ -557,8 +507,8 @@ void setup() {
       if(type == 0) {
         if(request->hasParam("startpin", true)) {
           int startpin = request->getParam("startpin", true)->value().toInt();
-          Serial.println("Ajout d'une valve locale : ");
-          Serial.println("StartPin : " + String(startpin));
+          DebugSerial("Ajout d'une valve locale : ");
+          DebugSerial("StartPin : " + String(startpin));
           AddValve(name, "local", startpin, 0, 0, "", "");
         }
       }
@@ -566,9 +516,9 @@ void setup() {
         if(request->hasParam("starturl", true) && request->hasParam("stopurl", true)) {
           String starturl = request->getParam("starturl", true)->value();
           String stopurl = request->getParam("stopurl", true)->value();
-          Serial.println("Ajout d'une valve distante : ");
-          Serial.println("StartURL : " + String(starturl));
-          Serial.println("EndURL : " + String(stopurl));
+          DebugSerial("Ajout d'une valve distante : ");
+          DebugSerial("StartURL : " + String(starturl));
+          DebugSerial("EndURL : " + String(stopurl));
           AddValve(name, "distante", 0, 0, 0, starturl, stopurl);
         }
       }
@@ -576,9 +526,9 @@ void setup() {
         if(request->hasParam("Hpin1", true) && request->hasParam("Hpin2", true)) {
           int Hpin1 = request->getParam("Hpin1", true)->value().toInt();
           int Hpin2 = request->getParam("Hpin2", true)->value().toInt();
-          Serial.println("Ajout d'une valve avec pont en H : ");
-          Serial.println("Hpin1 : " + String(Hpin1));
-          Serial.println("Hpin2 : " + String(Hpin2));
+          DebugSerial("Ajout d'une valve avec pont en H : ");
+          DebugSerial("Hpin1 : " + String(Hpin1));
+          DebugSerial("Hpin2 : " + String(Hpin2));
           AddValve(name, "locallatching", 0, Hpin1, Hpin2, "", "");
         }
       }
@@ -608,7 +558,7 @@ void setup() {
   });
 
   server.begin();
-  Serial.println("Serveur HTTP Async Actif !");
+  DebugSerial("Serveur HTTP Async Actif !");
   // StartValve(3); (TEST !!!)
 }
 
@@ -631,10 +581,10 @@ void CheckCycles() {
         if(CheckHours(starth, startm, endh, endm)) {
           // loop["state"] = true;
           if(state) {
-            Serial.println("Valve already started, cycle : " + String(id_prog));
+            DebugSerial("Valve already started, cycle : " + String(id_prog));
           }
           else {
-            Serial.println("Starting valve, cycle : " + String(id_prog));
+            DebugSerial("Starting valve, cycle : " + String(id_prog));
             if(StartValve(id_ev)) {
               loop["state"] = true;
             }
@@ -642,7 +592,7 @@ void CheckCycles() {
         }
         else {   
           if(state) {
-            Serial.println("Stopping cycle (hour not valid) : " + String(id_prog));
+            DebugSerial("Stopping cycle (hour not valid) : " + String(id_prog));
             if(temp == "true") {
             DeleteCycle(id_prog);
             }
@@ -651,13 +601,13 @@ void CheckCycles() {
             }
           }
           else {
-            Serial.println("Valve already stopped, cycle : " + String(id_prog));
+            DebugSerial("Valve already stopped, cycle : " + String(id_prog));
           }
         }
       }
       else {
         if(state) {
-          Serial.println("Stopping cycle (day not valid) : " + String(id_prog));
+          DebugSerial("Stopping cycle (day not valid) : " + String(id_prog));
           if(temp == "true") {
             DeleteCycle(id_prog);
           }
@@ -666,13 +616,13 @@ void CheckCycles() {
           }
         }
         else {
-          Serial.println("Valve already stopped, cycle : " + String(id_prog));
+          DebugSerial("Valve already stopped, cycle : " + String(id_prog));
         }
       }
     }
   }
   else {
-    Serial.println("Aucun cycle n'est dans le fichier ou problème de lecture.");
+    DebugSerial("Aucun cycle n'est dans le fichier ou problème de lecture.");
   }
   
 
