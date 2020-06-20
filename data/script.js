@@ -155,13 +155,19 @@ function InitValves(reset) {
                 else {
                     type = "Inconnu";
                 }
-                if (obj.state == true) {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateon'>ON</p> <br> <p>Démarrage manuel : <br><input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p><br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
-                }
-                else {
-                    document.getElementById("valves-list").innerHTML += " <a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p><p class='stateoff'>OFF</p> <br> <p>Démarrage manuel : <br><input type='number' id='manustart" + obj.id_ev + "' value='1' min='1' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
-                }
+                var valveslisthtml = "<a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p>"
                 
+                 
+                if (!obj.state) { 
+                    valveslisthtml += "<p class='stateoff'>OFF</p>" 
+                } 
+                else { 
+                    valveslisthtml += "<p class='stateon'>ON</p>"; 
+                }
+                valveslisthtml += "<br> <p>Démarrage manuel : <br><input type='number' id='manustart" + obj.id_ev + "' value='2' min='2' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button style='float: left;' type='button' onclick='StartValve(" + obj.id_ev + ");' class='btn btn-primary btn-sm'>Ouvrir la vanne</button>  <button style='float: left; margin-left: 10px;' type='button' onclick='StopValve(" + obj.id_ev + ");' class='btn btn-danger btn-sm'>Fermer la vanne</button>  <br> <button style='float: right;' type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
+                
+                document.getElementById("valves-list").innerHTML += valveslisthtml;
+
                 document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
             }
             
@@ -170,6 +176,66 @@ function InitValves(reset) {
     };
     xhttp.open("GET", "valves.json", true);
     xhttp.send();
+}
+
+function StartValve(id_ev) {
+    getJSON('valves.json', function(err, data) {
+        if(err !== null) {
+            alert("Il y a un problème : " + err);
+        }
+        else {
+            for(var i = 0; i < data.length; i++) {
+                var objopen = data[i];
+                if(id_ev == objopen.id_ev) {
+                    if (window.confirm('Voulez-vous vraiment ouvrir la vanne "' + objopen.name + '" ?'))
+                    {
+                        $.post("StartValve", {
+                            id: id_ev
+                        })
+                        .done(function() {
+                            setTimeout(InitCycles(true), 1000);
+                            setTimeout(InitValves(true), 1000);
+                        })
+                        .fail(function() {
+                            alert("Il y a eu un problème lors de l'ouverture de la vanne.")
+                        });
+                        
+                    }    
+                }   
+            }
+        }
+        
+    });
+}
+
+function StopValve(id_ev) {
+    getJSON('valves.json', function(err, data) {
+        if(err !== null) {
+            alert("Il y a un problème : " + err);
+        }
+        else {
+            for(var i = 0; i < data.length; i++) {
+                var objdel = data[i];
+                if(id_ev == objdel.id_ev) {
+                    if (window.confirm('Voulez-vous vraiment fermer la vanne "' + objdel.name + '" ?'))
+                    {
+                        $.post("StopValve", {
+                            id: id_ev
+                        })
+                        .done(function() {
+                            setTimeout(InitCycles(true), 1000);
+                            setTimeout(InitValves(true), 1000);
+                        })
+                        .fail(function() {
+                            alert("Il y a eu un problème lors de la fermeture de la vanne.")
+                        });
+                        
+                    }    
+                }   
+            }
+        }
+        
+    });
 }
 
 function DeleteValve(id_ev) {
@@ -456,10 +522,28 @@ function TemporaryCycle(id_ev) {
     var datestart = new Date();
     var datestop = add_minutes(datestart, minutes);
     var daystemp = [1, 1, 1, 1, 1, 1, 1];
-    if(window.confirm("Voulez-vous lancer un cycle temporaire pendant " + minutes + " minutes pour la vanne " + id_ev + " ?")) {
-        AddCycle("Cycle temporaire", id_ev, datestart, datestop, daystemp, true);
-    }
+    
+    getJSON('valves.json', function(err, data) {
+        if(err !== null) {
+            alert("Il y a un problème : " + err);
+        }
+        else {
+            for(var i = 0; i < data.length; i++) {
+                var objtemp = data[i];
+                if(id_ev == objtemp.id_ev) {
+                    if(window.confirm("Voulez-vous lancer un cycle temporaire de " + minutes + " minutes pour la vanne \"" + objtemp.name + "\" ?")) {
+                        AddCycle("Cycle temporaire", id_ev, datestart, datestop, daystemp, true);
+                    }
+                }   
+            }
+        }
+        
+    });
 }
+
+
+
+
 
 // ----------------------------------------------------------------- OTHERS FUNCTIONS
 

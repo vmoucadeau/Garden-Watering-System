@@ -22,7 +22,7 @@ float celsius;
 AsyncWebServer server(80);
 
 DS3232RTC myRTC(false);
-const int checkcycleinterval = 15;
+const int checkcycleinterval = 10;
 long alarm;
 
 boolean initated = false;
@@ -56,7 +56,7 @@ boolean CheckDay(JsonObject daystotest) {
     }
   }
   if(weekday() == 4) {
-    if(daystotest["wednesdat"]) {
+    if(daystotest["wednesday"]) {
       return true;
     }
   }
@@ -148,6 +148,7 @@ boolean StartValve(int id_ev) {
   return success;
 } 
 
+// Callback here isn't good
 boolean StopValve(int id_ev, boolean forcestop = false) {
   boolean success = false;
   String test = valvesarray[0]["name"];
@@ -206,28 +207,35 @@ boolean StopValve(int id_ev, boolean forcestop = false) {
   return success;
 } 
 
-void DeleteCycle(size_t idtodelete) {
+void DeleteCycle(int idtodelete) {
   String test = schedulesjson[0]["name"];
   if(test != "null") {
     int id_ev = schedulesjson[idtodelete]["id_ev"];
     String state = valvesjson[id_ev]["state"];
     if(state == "true") {
-      DebugSerial("Stopping valve before deleting cycle.");
-      if(!StopValve(id_ev, true)) {
+      DebugSerial("Stopping valve before deleting cycle."); // This is not working and I don't know why.
+      /*
+      if(!StopValve(idtodelete, true)) {
         DebugSerial("Can't stop valve.");
         return;
       }
+      */
+      StopValve(id_ev, true);
+      delay(1000);
+      DeleteCycle(idtodelete);
     }
-    schedulesjson.remove(idtodelete);
-    int i = 0;
-    for(JsonObject loop : schedulesarray) {
-      loop["id_prog"] = i;
-      i++;
+    else {
+      schedulesjson.remove(idtodelete);
+      int i = 0;
+      for(JsonObject loop : schedulesarray) {
+        loop["id_prog"] = i;
+        i++;
+      }
+      File schedules = SPIFFS.open("/schedules.json", "w");
+      serializeJson(schedulesjson, schedules);
+      schedules.close();   
+      DebugSerial("Cycle deleted.");
     }
-    File schedules = SPIFFS.open("/schedules.json", "w");
-    serializeJson(schedulesjson, schedules);
-    schedules.close();   
-    DebugSerial("Cycle deleted.");
   }
   else {
     DebugSerial("Impossible de lire le fichier.");
@@ -254,16 +262,20 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   return;  
 }
 
-void DeleteValve(size_t idtodelete) {
+void DeleteValve(int idtodelete) {
   String test = valvesjson[0]["name"];
   if(test != "null") {
     String state = valvesjson[idtodelete]["state"];
     if(state == "true") {
       DebugSerial("Stopping valve before deleting valve.");
+      /*
       if(!StopValve(idtodelete, true)) {
         DebugSerial("Can't stop valve.");
         return;
       }
+      */
+      StopValve(idtodelete, true);
+      delay(1000);
     }
     for(JsonObject valvecycle : schedulesarray) {
       if(valvecycle["id_ev"] == idtodelete) {
@@ -444,7 +456,10 @@ void setup() {
   server.on("/DeleteCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
+      int id_ev = schedulesarray[idtodelete]["id_ev"];
       DebugSerial("Cycle à supprimer : " + String(idtodelete));
+      StopValve(id_ev);
+      delay(500);
       DeleteCycle(idtodelete);
     }
     request->send(204);
@@ -460,6 +475,7 @@ void setup() {
       int endh = request->getParam("endh", true)->value().toInt();
       int endm = request->getParam("endm", true)->value().toInt();
 
+      // Not very clean:
       int monday = request->getParam("monday", true)->value().toInt();
       int tuesday = request->getParam("tuesday", true)->value().toInt();
       int wednesday = request->getParam("wednesday", true)->value().toInt();
@@ -495,6 +511,24 @@ void setup() {
       int idtodelete = request->getParam("id", true)->value().toInt();
       DebugSerial("Vanne à supprimer : " + String(idtodelete));
       DeleteValve(idtodelete);
+    }
+    request->send(204);
+  });
+
+  server.on("/StopValve", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("id", true)) {
+      int idtoclose = request->getParam("id", true)->value().toInt();
+      DebugSerial("Vanne à fermer : " + String(idtoclose));
+      StopValve(idtoclose, true);
+    }
+    request->send(204);
+  });
+
+  server.on("/StartValve", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("id", true)) {
+      int idtoopen = request->getParam("id", true)->value().toInt();
+      DebugSerial("Vanne à ouvrir : " + String(idtoopen));
+      StartValve(idtoopen);
     }
     request->send(204);
   });
@@ -593,32 +627,33 @@ void CheckCycles() {
         else {   
           if(state) {
             DebugSerial("Stopping cycle (hour not valid) : " + String(id_prog));
-            if(temp == "true") {
-            DeleteCycle(id_prog);
-            }
-            else if(StopValve(id_ev)) {
+            if(StopValve(id_ev)) {
               loop["state"] = false;
             }
           }
           else {
-            DebugSerial("Valve already stopped, cycle : " + String(id_prog));
+            DebugSerial("Valve already stopped (hour not valid), cycle : " + String(id_prog));
+            if(temp == "true") {
+              DeleteCycle(id_prog);
+            }
           }
         }
       }
       else {
         if(state) {
           DebugSerial("Stopping cycle (day not valid) : " + String(id_prog));
-          if(temp == "true") {
-            DeleteCycle(id_prog);
-          }
-          else if(StopValve(id_ev)) {
+          if(StopValve(id_ev)) {
             loop["state"] = false;
           }
         }
         else {
-          DebugSerial("Valve already stopped, cycle : " + String(id_prog));
+          DebugSerial("Valve already stopped (day not valid), cycle : " + String(id_prog));
+          if(temp == "true") {
+            DeleteCycle(id_prog);
+          }
         }
       }
+      
     }
   }
   else {
