@@ -233,28 +233,26 @@ void DeleteCycle(int idtodelete) {
     String state = valvesjson[id_ev]["state"];
     if(state == "true") {
       DebugSerial("Stopping valve before deleting cycle."); // This is not working and I don't know why.
-      /*
+      
       if(!StopValve(idtodelete, true)) {
         DebugSerial("Can't stop valve.");
         return;
       }
-      */
-      StopValve(id_ev, true);
-      delay(1000);
-      DeleteCycle(idtodelete);
+      
+      
     }
-    else {
-      schedulesjson.remove(idtodelete);
-      int i = 0;
-      for(JsonObject loop : schedulesarray) {
-        loop["id_prog"] = i;
-        i++;
-      }
-      File schedules = SPIFFS.open("/schedules.json", "w");
-      serializeJson(schedulesjson, schedules);
-      schedules.close();   
-      DebugSerial("Cycle deleted.");
+    
+    schedulesjson.remove(idtodelete);
+    int i = 0;
+    for(JsonObject loop : schedulesarray) {
+      loop["id_prog"] = i;
+      i++;
     }
+    File schedules = SPIFFS.open("/schedules.json", "w");
+    serializeJson(schedulesjson, schedules);
+    schedules.close();   
+    DebugSerial("Cycle deleted.");
+    
   }
   else {
     DebugSerial("Impossible de lire le fichier.");
@@ -287,14 +285,12 @@ void DeleteValve(int idtodelete) {
     String state = valvesjson[idtodelete]["state"];
     if(state == "true") {
       DebugSerial("Stopping valve before deleting valve.");
-      /*
+      
       if(!StopValve(idtodelete, true)) {
         DebugSerial("Can't stop valve.");
         return;
       }
-      */
-      StopValve(idtodelete, true);
-      delay(1000);
+      
     }
     for(JsonObject valvecycle : schedulesarray) {
       if(valvecycle["id_ev"] == idtodelete) {
