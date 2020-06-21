@@ -200,7 +200,7 @@ boolean StopValve(int id_ev, boolean forcestop = false, boolean startup = false)
               if(startup) {
                 delay(1500);
                 digitalWrite(Hpin1.toInt(), LOW);
-                digitalWrite(Hpin1.toInt(), LOW);
+                digitalWrite(Hpin2.toInt(), LOW);
               }
               else {
                 Hpin1tostop = Hpin1.toInt();
