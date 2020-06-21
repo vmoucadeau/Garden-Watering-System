@@ -370,6 +370,7 @@ void setup() {
   pinMode(14, OUTPUT);
   pinMode(12, OUTPUT);
   pinMode(13, OUTPUT);
+  digitalWrite(2, HIGH); // To switch off the builtin LED
 
   if (timeStatus() != timeSet) {
     DebugSerial("Fail");
@@ -405,7 +406,7 @@ void setup() {
   schedules.close();
 
   delay(500);
-  
+
   for (JsonObject loop : valvesarray) {
     String id_ev = loop["id_ev"];
     String name = loop["name"];
