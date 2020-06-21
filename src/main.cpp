@@ -8,11 +8,19 @@
 #include <Wire.h>
 #include <TimeLib.h>
 #include <DS3232RTC.h>
+#include <millisDelay.h>
 // JSON
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 
 boolean invertHbridgelogic = false;
+
+// Temporary
+int Hpin1tostop;
+int Hpin2tostop;
+
+millisDelay CloseValveDelay;
+
 
 const char *ssid = "Arrosage";
 const char *password = "azerty7532";
@@ -117,6 +125,7 @@ boolean StartValve(int id_ev) {
               http.end();
             }
             else if(type.toInt() == 2) {
+              
               String Hpin1 = loop["Hpin1"];
               String Hpin2 = loop["Hpin2"];
               if(invertHbridgelogic) {
@@ -127,9 +136,10 @@ boolean StartValve(int id_ev) {
                 digitalWrite(Hpin1.toInt(), HIGH);
                 digitalWrite(Hpin2.toInt(), LOW);
               }
-              delay(1500);
-              digitalWrite(Hpin1.toInt(), LOW);
-              digitalWrite(Hpin2.toInt(), LOW);
+              Hpin1tostop = Hpin1.toInt();
+              Hpin2tostop = Hpin2.toInt();
+              delay(500);
+              CloseValveDelay.start(1500);
               success = true;
             }
             if(success) {
@@ -149,7 +159,7 @@ boolean StartValve(int id_ev) {
 } 
 
 // Callback here isn't good
-boolean StopValve(int id_ev, boolean forcestop = false) {
+boolean StopValve(int id_ev, boolean forcestop = false, boolean startup = false) {
   boolean success = false;
   String test = valvesarray[0]["name"];
   if(test != "null") {
@@ -178,6 +188,7 @@ boolean StopValve(int id_ev, boolean forcestop = false) {
             else if(type.toInt() == 2) {
               String Hpin1 = loop["Hpin1"];
               String Hpin2 = loop["Hpin2"];
+              
               if(invertHbridgelogic) {
                 digitalWrite(Hpin1.toInt(), HIGH);
                 digitalWrite(Hpin2.toInt(), LOW);
@@ -186,9 +197,17 @@ boolean StopValve(int id_ev, boolean forcestop = false) {
                 digitalWrite(Hpin1.toInt(), LOW);
                 digitalWrite(Hpin2.toInt(), HIGH);
               }
-              delay(1500);
-              digitalWrite(Hpin1.toInt(), LOW);
-              digitalWrite(Hpin2.toInt(), LOW);
+              if(startup) {
+                delay(1500);
+                digitalWrite(Hpin1.toInt(), LOW);
+                digitalWrite(Hpin1.toInt(), LOW);
+              }
+              else {
+                Hpin1tostop = Hpin1.toInt();
+                Hpin2tostop = Hpin2.toInt();
+                delay(500);
+                CloseValveDelay.start(1500);
+              }
               success = true;
             }
             if(success) {
@@ -402,7 +421,7 @@ void setup() {
     String id_ev = loop["id_ev"];
     String name = loop["name"];
     DebugSerial("Stopping valve : " + name);
-    StopValve(id_ev.toInt(), true);
+    StopValve(id_ev.toInt(), true, true);
   }
 
   // Web Server
@@ -510,6 +529,7 @@ void setup() {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
       DebugSerial("Vanne à supprimer : " + String(idtodelete));
+      StopValve(idtodelete);
       DeleteValve(idtodelete);
     }
     request->send(204);
@@ -627,9 +647,9 @@ void CheckCycles() {
         else {   
           if(state) {
             DebugSerial("Stopping cycle (hour not valid) : " + String(id_prog));
-            if(StopValve(id_ev)) {
-              loop["state"] = false;
-            }
+            StopValve(id_ev);
+            loop["state"] = false;
+            
           }
           else {
             DebugSerial("Valve already stopped (hour not valid), cycle : " + String(id_prog));
@@ -642,9 +662,9 @@ void CheckCycles() {
       else {
         if(state) {
           DebugSerial("Stopping cycle (day not valid) : " + String(id_prog));
-          if(StopValve(id_ev)) {
-            loop["state"] = false;
-          }
+          StopValve(id_ev);
+          loop["state"] = false;
+          
         }
         else {
           DebugSerial("Valve already stopped (day not valid), cycle : " + String(id_prog));
@@ -670,6 +690,10 @@ void loop() {
     CheckCycles();
   }
   
+  if(CloseValveDelay.justFinished()) {
+    digitalWrite(Hpin1tostop, LOW);
+    digitalWrite(Hpin2tostop, LOW);
+  }
 }
 
 

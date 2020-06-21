@@ -130,12 +130,12 @@ $(':checkbox').change(function() {
 
 // ----------------------------------------------------------------- VALVES FUNCTIONS
 
-function InitValves(reset) {
+function InitValves() {
     var xhttp = new XMLHttpRequest();
-    if(reset) {
-        document.getElementById("valves-list").innerHTML = "";
-        document.getElementById("inputev").innerHTML = '<option selected disabled value="RIEN">Choisir un type...</option>';
-    }
+    
+    document.getElementById("valves-list").innerHTML = "";
+    document.getElementById("inputev").innerHTML = '<option selected disabled value="RIEN">Choisir un type...</option>';
+    
     xhttp.onreadystatechange = function() {
         if(this.readyState == 4 && this.status == 200) {
             var json = JSON.parse(this.responseText);
@@ -193,8 +193,8 @@ function StartValve(id_ev) {
                             id: id_ev
                         })
                         .done(function() {
-                            setTimeout(InitCycles(true), 1000);
-                            setTimeout(InitValves(true), 1000);
+                            setTimeout(InitCycles(), 1000);
+                            setTimeout(InitValves(), 1000);
                         })
                         .fail(function() {
                             alert("Il y a eu un problème lors de l'ouverture de la vanne.")
@@ -223,8 +223,8 @@ function StopValve(id_ev) {
                             id: id_ev
                         })
                         .done(function() {
-                            setTimeout(InitCycles(true), 1000);
-                            setTimeout(InitValves(true), 1000);
+                            setTimeout(InitCycles(), 1000);
+                            setTimeout(InitValves(), 1000);
                         })
                         .fail(function() {
                             alert("Il y a eu un problème lors de la fermeture de la vanne.")
@@ -253,8 +253,8 @@ function DeleteValve(id_ev) {
                             id: id_ev
                         })
                         .done(function() {
-                            setTimeout(InitCycles(true), 1000);
-                            setTimeout(InitValves(true), 1000);
+                            setTimeout(InitCycles(), 1000);
+                            setTimeout(InitValves(), 1000);
                         })
                         .fail(function() {
                             alert("Il y a eu un problème lors de la suppression de la vanne.")
@@ -276,7 +276,7 @@ function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
             startpin: startpin
         })
         .done(function() {
-            setTimeout(InitValves(true), 1000);
+            setTimeout(InitValves(), 1000);
         })
         .fail(function() {
             alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
@@ -291,7 +291,7 @@ function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
         })
         .done(function() {
             $('#tab1Id').tab('show');
-            setTimeout(InitValves(true), 1000);
+            setTimeout(InitValves(), 1000);
         })
         .fail(function() {
             alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
@@ -305,7 +305,7 @@ function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
             Hpin2: Hpin2
         })
         .done(function() {
-            setTimeout(InitValves(true), 1000);
+            setTimeout(InitValves(), 1000);
         })
         .fail(function() {
             alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
@@ -366,11 +366,11 @@ $( "#vannesave" ).click(function() {
 
 // ----------------------------------------------------------------- CYCLES FUNCTIONS
 
-function InitCycles(reset) {
+function InitCycles() {
     var valvesdisplayed = [];
-    if(reset) {
-        document.getElementById("cycles").innerHTML = "";
-    }
+    
+    document.getElementById("cycles").innerHTML = "";
+    
     getJSON('valves.json', function(err, datavalves) {
         if (err !== null) {
             alert('Something went wrong: ' + err);
@@ -384,6 +384,7 @@ function InitCycles(reset) {
                             var objvalve = datavalves[j];
                             for(var i = 0; i < dataschedules.length; i++) {
                                 var objschedule = dataschedules[i];
+                                var cyclelistinner = ""
                                 
                                 if(objschedule.id_ev == objvalve.id_ev) {
                                     var objdays = objschedule.daysActive;
@@ -410,12 +411,15 @@ function InitCycles(reset) {
                                         daysarray.push("Dimanche");
                                     }
                                     if(!valvesdisplayed.includes(objvalve.id_ev)) {
-                                        document.getElementById("cycles").innerHTML += "<div class=\"settingstitle\"> <h2 style=\"display: inline;\" class=\"tab_title\">Cycles (" + objvalve.name + ") :</h2> </div>";
+                                        cyclelistinner += "<div class=\"settingstitle\"> <h2 style=\"display: inline;\" class=\"tab_title\">Cycles (" + objvalve.name + ") :</h2> </div>";
                                         valvesdisplayed.push(objvalve.id_ev);
                                     }
                                     
-                                    document.getElementById("cycles").innerHTML += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + objschedule.id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p>  <p>Jour(s) :  ' + daysarray.join(', ') + ' </p> </a> </div>';
-                                    
+                                    cyclelistinner += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + objschedule.id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p> ' ;
+                                    if(!objschedule.temporary) {
+                                        cyclelistinner += '<p>Jour(s) :  ' + daysarray.join(', ') + ' </p> </a> </div>';
+                                    }
+                                    document.getElementById("cycles").innerHTML += cyclelistinner;
                                 } 
                                 
                             }
@@ -444,7 +448,7 @@ function DeleteCycle(id_prog) {
                             id: id_prog
                         })
                         .done(function() {
-                            setTimeout(InitCycles(true), 1000);
+                            setTimeout(InitCycles(), 1000);
                         })
                         .fail(function() {
                             alert("Il y a eu un problème lors de la suppression du cycle.")
@@ -476,7 +480,7 @@ function AddCycle(name, id_valve, StartHour, EndHour, days, temp) {
         temporary: temp
     })
     .done(function() {
-        setTimeout(InitCycles(true), 1000);
+        setTimeout(InitCycles(), 1000);
     })
     .fail(function() {
         alert("Il y a eu un problème lors de l'envoi des informations du nouveau cycle.")
