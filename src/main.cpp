@@ -30,8 +30,8 @@ float celsius;
 AsyncWebServer server(80);
 
 DS3232RTC myRTC(false);
-const int checkcycleinterval = 10;
-long alarm;
+const int checkcycleinterval = 5000;
+millisDelay CheckCyclesDelay;
 
 boolean initated = false;
 
@@ -359,9 +359,6 @@ void setup() {
 
   // RTC            
   myRTC.begin();
-  alarm = now() + checkcycleinterval;      
-  // setTime(22, 21, 0, 31, 5, 2020);   
-  // myRTC.set(now());                     //set the RTC from the system time
   setSyncProvider(myRTC.get);
 
 
@@ -373,12 +370,6 @@ void setup() {
   pinMode(14, OUTPUT);
   pinMode(12, OUTPUT);
   pinMode(13, OUTPUT);
-  digitalWrite(16, LOW);
-  digitalWrite(0, LOW);
-  digitalWrite(2, HIGH);
-  digitalWrite(14, LOW);
-  digitalWrite(12, LOW);
-  digitalWrite(13, LOW);
 
   if (timeStatus() != timeSet) {
     DebugSerial("Fail");
@@ -413,6 +404,8 @@ void setup() {
   }
   schedules.close();
 
+  delay(500);
+  
   for (JsonObject loop : valvesarray) {
     String id_ev = loop["id_ev"];
     String name = loop["name"];
@@ -609,7 +602,7 @@ void setup() {
 
   server.begin();
   DebugSerial("Serveur HTTP Async Actif !");
-  // StartValve(3); (TEST !!!)
+  CheckCyclesDelay.start(checkcycleinterval);
 }
 
 void CheckCycles() {
@@ -681,11 +674,10 @@ void CheckCycles() {
 
 void loop() {
   
-  if(now() >= alarm) {
-    alarm = now() + checkcycleinterval;
+  if(CheckCyclesDelay.justFinished()) {
     CheckCycles();
+    CheckCyclesDelay.start(checkcycleinterval);
   }
-  
   if(CloseValveDelay.justFinished()) {
     digitalWrite(Hpin1tostop, LOW);
     digitalWrite(Hpin2tostop, LOW);
