@@ -23,7 +23,6 @@ int Hpin2tostop;
 
 millisDelay CloseValveDelay;
 
-
 // const char *ssid = "Arrosage";
 // const char *password = "azerty7532";
 
@@ -362,13 +361,13 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
   return;
 }
 
-/* Useless for now
-void SetWiFi(WiFiMode mode, String ssid, const char *password) {
-  WiFi.disconnect();
+void SetWiFi(WiFiMode mode, const char *ssid, const char *password) {
+  WiFi.disconnect(); // Useless?
   WiFi.mode(mode);
   if(mode == WIFI_AP) {
-    WiFi.softAP(ssid, password);
-    DebugSerial("WiFi Access Point started");
+    if(WiFi.softAP(ssid, password)) {
+      DebugSerial("WiFi Access Point started");
+    }
   }
   if(mode == WIFI_STA) {
     WiFi.begin(ssid, password);
@@ -383,7 +382,7 @@ void SetWiFi(WiFiMode mode, String ssid, const char *password) {
     WiFi.setAutoReconnect(true);
   }
 }
-*/
+
 
 void setup() {
 
@@ -417,33 +416,15 @@ void setup() {
 
   // WiFi
   String wifimode = configarray[0]["wifi"]["mode"];
-
+  const char *ssid = configarray[0]["wifi"]["ssid"];
+  const char *password = configarray[0]["wifi"]["password"];
 
   if(wifimode == "STA") {
-    String ssid = configarray[0]["wifi"]["ssid"];
-    const char *password = configarray[0]["wifi"]["password"];
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-      delay(500);
-      Serial.print(".");
-    }
-    Serial.println(" ");
-    DebugSerial("Connected to WiFi");
-    WiFi.setAutoReconnect(true);
+    SetWiFi(WIFI_STA, ssid, password);
   }
   else if(wifimode == "AP") {
-    const char *ssid = configarray[0]["wifi"]["ssid"];
-    const char *password = configarray[0]["wifi"]["password"];
-    WiFi.mode(WIFI_AP);
-    if(WiFi.softAP(ssid, password)) {
-      DebugSerial("WiFi Access Point Started");
-    }
-      
-    
+    SetWiFi(WIFI_AP, ssid, password);
   }
-  
 
 
   // Time
@@ -572,18 +553,18 @@ void setup() {
       String ssid = request->getParam("ssid", true)->value();
       String password = request->getParam("password", true)->value();
 
+      configarray[0]["wifi"]["ssid"] = ssid;
+      configarray[0]["wifi"]["password"] = password; 
+
+      DebugSerial("WiFi SSID : " + ssid);
+      DebugSerial("WiFi Password : " + password);
+
       if(mode == "station") {
         configarray[0]["wifi"]["mode"] = "STA";
       }
       if(mode == "ap") {
         configarray[0]["wifi"]["mode"] = "AP";
       }
-
-      configarray[0]["wifi"]["ssid"] = ssid;
-      configarray[0]["wifi"]["password"] = password; 
-
-      DebugSerial("WiFi SSID : " + ssid);
-      DebugSerial("WiFi Password : " + password);
       
       File config = SPIFFS.open("/config.json", "w");
       serializeJson(configjson, config);
@@ -715,7 +696,11 @@ void setup() {
   });
 
   server.on("/datetime.json", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String timeprovider = configarray[0]["time"]["syncprovider"];
     celsius = myRTC.temperature() / 4.0;
+    if(timeprovider != "rtc") {
+      celsius = 0;
+    }
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     const int dtcapacity = JSON_OBJECT_SIZE(9);
     StaticJsonDocument<dtcapacity> root;
@@ -810,13 +795,10 @@ void loop() {
     if(WiFi.status() != WL_CONNECTED) {
       DebugSerial("Disconnected from WiFi, reconnecting...");
       WiFi.reconnect();
-      while (WiFi.status() != WL_CONNECTED)
-      {
+      while(WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
       }
-      Serial.println(" ");
-      DebugSerial("Connected to WiFi");
     }
   }
 
@@ -828,4 +810,5 @@ void loop() {
     digitalWrite(Hpin1tostop, LOW);
     digitalWrite(Hpin2tostop, LOW);
   }
+  
 }

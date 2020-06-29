@@ -1,1 +1,1 @@
-[{"name":"Arrosage Herbe Piscine","id_ev":0,"type":2,"Hpin1":5,"Hpin2":6,"state":false},{"name":"Arrosage Ouest Zone 1","id_ev":1,"type":1,"starturl":"http://192.168.4.1/gpio/5/1","stopurl":"http://192.168.4.1/gpio/5/0","state":false},{"name":"Arrosage Ouest Zone 2","id_ev":2,"type":1,"starturl":"http://192.168.4.1/gpio/6/1","stopurl":"http://192.168.4.1/gpio/6/0","state":false}]
+[]
