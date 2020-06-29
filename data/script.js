@@ -404,14 +404,14 @@ $( "#vannesave" ).click(function() {
     
     if(type == "local") {
         var startpin = $("#startpin").val();
-        if(startpin == 5 || startpin == 4) {alert("Cette pin ne peut pas être utilisée."); return;}
+        // if(startpin == 5 || startpin == 4) {alert("Cette pin ne peut pas être utilisée."); return;}
         AddValve(name, 0, startpin);
     }
     if(type == "locallatching") {
         var Hpin1 = $("#Hpin1").val();
         var Hpin2 = $("#Hpin2").val();
-        if(Hpin1 == 5 || Hpin1 == 4 ) {alert("La pin " + Hpin1 + " ne peut pas être utilisée."); return;}
-        if(Hpin2 == 5 || Hpin2 == 4 ) {alert("La pin " + Hpin2 + " ne peut pas être utilisée."); return;}
+        // if(Hpin1 == 5 || Hpin1 == 4 ) {alert("La pin " + Hpin1 + " ne peut pas être utilisée."); return;}
+        // if(Hpin2 == 5 || Hpin2 == 4 ) {alert("La pin " + Hpin2 + " ne peut pas être utilisée."); return;}
         AddValve(name, 2, 0, Hpin1, Hpin2, "", "");
     }
     if(type == "distante") {
