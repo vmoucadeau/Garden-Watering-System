@@ -5,13 +5,15 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 // RTC/Time
-#include <Wire.h>
+// #include <Wire.h> // Useless?
 #include <TimeLib.h>
 #include <DS3232RTC.h>
+#include <NTPClientLib.h>
 #include <millisDelay.h>
 // JSON
-#include <AsyncJson.h>
 #include <ArduinoJson.h>
+#include <AsyncJson.h>
+
 
 boolean invertHbridgelogic = false;
 
@@ -22,25 +24,37 @@ int Hpin2tostop;
 millisDelay CloseValveDelay;
 
 
-const char *ssid = "Arrosage";
-const char *password = "azerty7532";
+// const char *ssid = "Arrosage";
+// const char *password = "azerty7532";
 
 float celsius;
 
 AsyncWebServer server(80);
 
+// Time, RTC & NTP
 DS3232RTC myRTC(false);
+
+unsigned int localPort = 8888;  // local port to listen for UDP packets
+
+time_t getNtpTime();
+void sendNTPpacket(IPAddress &address);
+
+
+
+// Check Cycles
 const int checkcycleinterval = 5000;
 millisDelay CheckCyclesDelay;
 
-boolean initated = false;
-
+// JSON Documents
 DynamicJsonDocument schedulesjson(2048);
 JsonArray schedulesarray = schedulesjson.to<JsonArray>();
 
-
 DynamicJsonDocument valvesjson(1024);
 JsonArray valvesarray = valvesjson.to<JsonArray>();
+
+StaticJsonDocument<300> configjson;
+JsonArray configarray = configjson.to<JsonArray>();
+
 
 void DebugSerial(String msg) {
   Serial.println("[DEBUG]: " + msg);
@@ -348,45 +362,34 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
   return;
 }
 
-
-
+/* Useless for now
+void SetWiFi(WiFiMode mode, String ssid, const char *password) {
+  WiFi.disconnect();
+  WiFi.mode(mode);
+  if(mode == WIFI_AP) {
+    WiFi.softAP(ssid, password);
+    DebugSerial("WiFi Access Point started");
+  }
+  if(mode == WIFI_STA) {
+    WiFi.begin(ssid, password);
+    DebugSerial("Connecting to WiFi");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println(" ");
+    DebugSerial("Connected to WiFi");
+    WiFi.setAutoReconnect(true);
+  }
+}
+*/
 
 void setup() {
 
   // Serial
   Serial.begin(9600);
   Serial.println();
-
-  // RTC            
-  myRTC.begin();
-  setSyncProvider(myRTC.get);
-
-
-  // Pins init, for now, you need to replace with your pins if you don't have an ESP12E
-  // With an ESP12E, you can control 4 classic valves with relays localy and 2 latching valves (with L293D)
-  pinMode(16, OUTPUT);
-  pinMode(0, OUTPUT);
-  pinMode(2, OUTPUT);
-  pinMode(14, OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
-  digitalWrite(2, HIGH); // To switch off the builtin LED
-
-  if (timeStatus() != timeSet) {
-    DebugSerial("Fail");
-  }
-
-  // WiFi Hostpot
-  Serial.print("Setting soft-AP ... ");
-  boolean result = WiFi.softAP(ssid, password);
-  if(result == true)
-  {
-    DebugSerial("WiFi access point started");
-  }
-  else
-  {
-    DebugSerial("Failed!");
-  }
 
   // SPIFFS
   SPIFFS.begin();
@@ -403,7 +406,73 @@ void setup() {
   if(err2) {
     DebugSerial("Erreur deserialization");
   }
-  schedules.close();
+  valves.close();
+
+  File config = SPIFFS.open("/config.json", "r");
+  DeserializationError err3 = deserializeJson(configjson, config);
+  if(err3) {
+    DebugSerial("Erreur deserialization");
+  }
+  config.close();
+
+  // WiFi
+  String wifimode = configarray[0]["wifi"]["mode"];
+
+
+  if(wifimode == "STA") {
+    String ssid = configarray[0]["wifi"]["ssid"];
+    const char *password = configarray[0]["wifi"]["password"];
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println(" ");
+    DebugSerial("Connected to WiFi");
+    WiFi.setAutoReconnect(true);
+  }
+  else if(wifimode == "AP") {
+    const char *ssid = configarray[0]["wifi"]["ssid"];
+    const char *password = configarray[0]["wifi"]["password"];
+    WiFi.mode(WIFI_AP);
+    if(WiFi.softAP(ssid, password)) {
+      DebugSerial("WiFi Access Point Started");
+    }
+      
+    
+  }
+  
+
+
+  // Time
+  myRTC.begin();
+  String timeprovider = configarray[0]["time"]["syncprovider"];
+  if(timeprovider == "rtc"){
+    
+    setSyncProvider(myRTC.get);
+    DebugSerial("Time Sync Provider : RTC");
+  }
+  else if(timeprovider == "ntp") {
+    int timezone = configarray[0]["time"]["timezone"];
+    boolean summertime = configarray[0]["time"]["summertime"];
+    String ntpserver = configarray[0]["time"]["ntpserver"];
+    NTP.begin(ntpserver, timezone, summertime);
+    NTP.setInterval(300);
+    DebugSerial("Time Sync Provider : NTP");
+  }
+
+
+  // Pins init, for now, you need to replace with your pins if you don't have an ESP12E
+  // With an ESP12E, you can control 4 classic valves with relays localy and 2 latching valves (with L293D or two relays per valves)
+  pinMode(16, OUTPUT);
+  pinMode(0, OUTPUT);
+  pinMode(2, OUTPUT);
+  pinMode(14, OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(13, OUTPUT);
+  digitalWrite(2, HIGH); // To switch off the builtin LED
 
   delay(500);
 
@@ -451,13 +520,74 @@ void setup() {
     request->send(response);
   });
 
+  server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    serializeJson(configjson, *response);
+    request->send(response);
+  });
+
   server.on("/SetRTCTime", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(request->hasParam("timestamp", true)) {
       int timestamp = request->getParam("timestamp", true)->value().toInt();
       time_t timetoset = timestamp;
       setTime(timetoset);   
       delay(100);
-      myRTC.set(now());   
+      myRTC.set(now()); 
+      configarray[0]["time"]["syncprovider"] = "rtc";  
+      File config = SPIFFS.open("/config.json", "w");
+      serializeJson(configjson, config);
+      config.close(); 
+      setSyncProvider(myRTC.get);
+    }
+    request->send(204);
+  });
+
+  server.on("/SetNTPTime", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("timezone", true) && request->hasParam("ntpserver", true) && request->hasParam("summertime", true)) {
+      int timezone = request->getParam("timezone", true)->value().toInt();
+      int smt = request->getParam("summertime", true)->value().toInt();
+      String ntpserver = request->getParam("ntpserver", true)->value();
+      boolean summertime = false;
+      if(smt == 1) {summertime = true;}
+
+      NTP.begin(ntpserver, timezone, summertime);
+      NTP.setInterval(300);
+      configarray[0]["time"]["syncprovider"] = "ntp"; 
+      configarray[0]["time"]["ntpserver"] = ntpserver;
+      configarray[0]["time"]["timezone"] = timezone; 
+      configarray[0]["time"]["summertime"] = summertime;
+      File config = SPIFFS.open("/config.json", "w");
+      serializeJson(configjson, config);
+      config.close(); 
+      DebugSerial("NTP Time set : ");
+      DebugSerial("NTP Server : " + ntpserver);
+      DebugSerial("Timezone : " + String(timezone));
+    }
+    request->send(204);
+  });
+
+  server.on("/SetWiFiMode", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("mode", true) && request->hasParam("ssid", true) && request->hasParam("password", true)) {
+      String mode = request->getParam("mode", true)->value();
+      String ssid = request->getParam("ssid", true)->value();
+      String password = request->getParam("password", true)->value();
+
+      if(mode == "station") {
+        configarray[0]["wifi"]["mode"] = "STA";
+      }
+      if(mode == "ap") {
+        configarray[0]["wifi"]["mode"] = "AP";
+      }
+
+      configarray[0]["wifi"]["ssid"] = ssid;
+      configarray[0]["wifi"]["password"] = password; 
+
+      DebugSerial("WiFi SSID : " + ssid);
+      DebugSerial("WiFi Password : " + password);
+      
+      File config = SPIFFS.open("/config.json", "w");
+      serializeJson(configjson, config);
+      config.close(); 
     }
     request->send(204);
   });
@@ -674,7 +804,22 @@ void CheckCycles() {
 }
 
 void loop() {
-  
+  String wifimode = configarray[0]["wifi"]["mode"];
+
+  if(wifimode == "STA") {
+    if(WiFi.status() != WL_CONNECTED) {
+      DebugSerial("Disconnected from WiFi, reconnecting...");
+      WiFi.reconnect();
+      while (WiFi.status() != WL_CONNECTED)
+      {
+        delay(500);
+        Serial.print(".");
+      }
+      Serial.println(" ");
+      DebugSerial("Connected to WiFi");
+    }
+  }
+
   if(CheckCyclesDelay.justFinished()) {
     CheckCycles();
     CheckCyclesDelay.start(checkcycleinterval);
@@ -684,5 +829,3 @@ void loop() {
     digitalWrite(Hpin2tostop, LOW);
   }
 }
-
-

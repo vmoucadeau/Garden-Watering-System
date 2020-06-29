@@ -1,0 +1,16 @@
+[
+    {
+        "time": {
+            "syncprovider": "ntp",
+            "ntpserver": "fr.pool.ntp.org",
+            "timezone": 1,
+            "summertime": true
+        },
+        "wifi": {
+            "mode": "STA",
+            "ssid": "MAISON",
+            "password":"barbentane"
+        }
+    }
+    
+]

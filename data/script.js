@@ -73,29 +73,93 @@ function getDate() {
 }
 
 function setDate() {
-    var date = new Date($('#datetoset').val());
-    var time = $('#hourtoset').val().split(':')
-    // +2 for GMT+2, it's not good...
-    date.setHours(parseInt(time[0], 10) + 2, parseInt(time[1], 10))
-    
-    
-    $.post("SetRTCTime", {
-        timestamp: date.getTime()/1000
+    var timeprovider = $("#timeprovider").val();
+    if(timeprovider == "rtc") {
+        var date = new Date($('#datetoset').val());
+        var time = $('#hourtoset').val().split(':');
+        var timezone = $('#timezonertc').val();
+        
+        date.setHours(parseInt(time[0], 10) + parseInt(timezone, 10), parseInt(time[1], 10))
+        
+        
+        $.post("SetRTCTime", {
+            timestamp: date.getTime()/1000
+        })
+        .done(function() {
+            setTimeout(getDate(), 1000);
+            alert("Opération effectuée")
+            $("#ModalSetTime").modal("hide");
+        })
+        .fail(function() {
+            alert("Il y a eu un problème lors de l'envoi des données.")
+        });
+    }
+    else if(timeprovider == "ntp") {
+        var ntpurl = $('#ntpurl').val();
+        var timezone = $('#timezonentp').val();
+        var smt = 0;
+        if($("#summertime").is(":checked")) {
+            smt = 1;
+        }
+        $.post("SetNTPTime", {
+            ntpserver: ntpurl,
+            timezone: timezone,
+            summertime: smt
+        })
+        .done(function() {
+            setTimeout(getDate(), 1000);
+            alert("Opération effectuée")
+            $("#ModalSetTime").modal("hide");
+        })
+        .fail(function() {
+            alert("Il y a eu un problème lors de l'envoi des données.")
+        });
+    }
+}
+
+$("#timesave").click(function() {
+    setDate();
+});
+
+$("#timeprovider").change(function() {
+    if($("#timeprovider").val() == "ntp") {
+        $("#showrtc").hide();
+        $("#showntp").show();
+        
+    }
+    if($("#timeprovider").val() == "rtc") {
+        $("#showrtc").show();
+        $("#showntp").hide();
+    }
+});
+
+function WiFiSave() {
+    var mode = $("#wifimode").val();
+    var ssid = $('#wifissid').val();
+    var password = $('#wifipassword').val();  
+
+    if(mode == null) {alert("Veuillez choisir un mode WiFi."); return;}
+    if(ssid == "") {alert("Le SSID du WiFi ne peut pas être vide."); return;}
+    if(password == "") {alert("Le mot de passe du WiFi ne peut pas être vide."); return;}
+
+    $.post("SetWiFiMode", {
+        mode: mode,
+        ssid: ssid,
+        password: password
     })
     .done(function() {
-        setTimeout(getDate(), 1000);
-        alert("Opération effectuée")
-        $("#ModalSetTime").modal("hide");
+        alert("Opération effectuée");
     })
     .fail(function() {
         alert("Il y a eu un problème lors de l'envoi des données.")
     });
     
+    
 }
 
-$("#timesave").click(function() {
-    setDate();
-})
+$("#wifisave").click(function() {
+    WiFiSave();
+});
 
 function setDay() {
     monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
@@ -544,7 +608,6 @@ function TemporaryCycle(id_ev) {
         
     });
 }
-
 
 
 
