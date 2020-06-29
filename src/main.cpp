@@ -14,7 +14,7 @@
 #include <ArduinoJson.h>
 #include <AsyncJson.h>
 
-
+boolean DEBUG = false;
 boolean invertHbridgelogic = false;
 
 // Temporary
@@ -23,22 +23,12 @@ int Hpin2tostop;
 
 millisDelay CloseValveDelay;
 
-// const char *ssid = "Arrosage";
-// const char *password = "azerty7532";
-
 float celsius;
 
 AsyncWebServer server(80);
 
-// Time, RTC & NTP
+// RTC
 DS3232RTC myRTC(false);
-
-unsigned int localPort = 8888;  // local port to listen for UDP packets
-
-time_t getNtpTime();
-void sendNTPpacket(IPAddress &address);
-
-
 
 // Check Cycles
 const int checkcycleinterval = 5000;
@@ -56,7 +46,9 @@ JsonArray configarray = configjson.to<JsonArray>();
 
 
 void DebugSerial(String msg) {
-  Serial.println("[DEBUG]: " + msg);
+  if(DEBUG) {
+    Serial.println("[DEBUG]: " + msg);
+  }
 }
 
 boolean CheckDay(JsonObject daystotest) {
@@ -171,7 +163,6 @@ boolean StartValve(int id_ev) {
   return success;
 } 
 
-// Callback here isn't good
 boolean StopValve(int id_ev, boolean forcestop = false, boolean startup = false) {
   boolean success = false;
   String test = valvesarray[0]["name"];
