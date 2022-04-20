@@ -3,7 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <ESPAsyncWebServer.h>
-#include <FS.h>
+#include <LittleFS.h>
 // RTC/Time
 // #include <Wire.h> // Useless?
 #include <TimeLib.h>
@@ -14,7 +14,7 @@
 #include <ArduinoJson.h>
 #include <AsyncJson.h>
 
-boolean DEBUG = false;
+boolean DEBUG = true;
 boolean invertHbridgelogic = false;
 
 // Temporary
@@ -52,41 +52,9 @@ void DebugSerial(String msg) {
 }
 
 boolean CheckDay(JsonObject daystotest) {
-  // Works, but it's not clean... I know.
-  if(weekday() == 1) {
-    if(daystotest["sunday"]) {
-      return true;
-    }
-  }
-  if(weekday() == 2) {
-    if(daystotest["monday"]) {
-      return true;
-    }
-  }
-  if(weekday() == 3) {
-    if(daystotest["tuesday"]) {
-      return true;
-    }
-  }
-  if(weekday() == 4) {
-    if(daystotest["wednesday"]) {
-      return true;
-    }
-  }
-  if(weekday() == 5) {
-    if(daystotest["thursday"]) {
-      return true;
-    }
-  }
-  if(weekday() == 6) {
-    if(daystotest["friday"]) {
-      return true;
-    }
-  }
-  if(weekday() == 7) {
-    if(daystotest["saturday"]) {
-      return true;
-    }
+  String days[7] = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+  if (daystotest[days[weekday()-1]]) {
+    return true;
   }
   return false;
 }
@@ -252,7 +220,7 @@ void DeleteCycle(int idtodelete) {
       loop["id_prog"] = i;
       i++;
     }
-    File schedules = SPIFFS.open("/schedules.json", "w");
+    File schedules = LittleFS.open("/schedules.json", "w");
     serializeJson(schedulesjson, schedules);
     schedules.close();   
     DebugSerial("Cycle deleted.");
@@ -277,7 +245,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
   schedule["temporary"] = temp;
   schedule["state"] = false;
 
-  File schedules = SPIFFS.open("/schedules.json", "w");
+  File schedules = LittleFS.open("/schedules.json", "w");
   serializeJson(schedulesjson, schedules);
   schedules.close(); 
   return;  
@@ -310,7 +278,7 @@ void DeleteValve(int idtodelete) {
       loop["id_ev"] = i;
       i++;
     }
-    File valves = SPIFFS.open("/valves.json", "w");
+    File valves = LittleFS.open("/valves.json", "w");
     serializeJson(valvesjson, valves); 
     valves.close(); 
   }
@@ -346,7 +314,7 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
   }
   valve["state"] = false;
       
-  File valves = SPIFFS.open("/valves.json", "w");
+  File valves = LittleFS.open("/valves.json", "w");
   serializeJson(valvesjson, valves);
   valves.close();
   return;
@@ -381,24 +349,24 @@ void setup() {
   Serial.begin(9600);
   Serial.println();
 
-  // SPIFFS
-  SPIFFS.begin();
+  // LittleFS
+  LittleFS.begin();
 
-  File schedules = SPIFFS.open("/schedules.json", "r");
+  File schedules = LittleFS.open("/schedules.json", "r");
   DeserializationError err = deserializeJson(schedulesjson, schedules);
   if(err) {
     DebugSerial("Erreur deserialization");
   }
   schedules.close();
 
-  File valves = SPIFFS.open("/valves.json", "r");
+  File valves = LittleFS.open("/valves.json", "r");
   DeserializationError err2 = deserializeJson(valvesjson, valves);
   if(err2) {
     DebugSerial("Erreur deserialization");
   }
   valves.close();
 
-  File config = SPIFFS.open("/config.json", "r");
+  File config = LittleFS.open("/config.json", "r");
   DeserializationError err3 = deserializeJson(configjson, config);
   if(err3) {
     DebugSerial("Erreur deserialization");
@@ -457,27 +425,27 @@ void setup() {
 
   // Web Server
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/index.html", "text/html");
+    request->send(LittleFS, "/index.html", "text/html");
   });
 
   server.on("/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/bootstrap.min.css", "text/css");
+    request->send(LittleFS, "/bootstrap.min.css", "text/css");
   });
 
   server.on("/bootstrap.min.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/bootstrap.min.js", "text/javascript");
+    request->send(LittleFS, "/bootstrap.min.js", "text/javascript");
   });
 
   server.on("/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/jquery.min.js", "text/javascript");
+    request->send(LittleFS, "/jquery.min.js", "text/javascript");
   });
 
   server.on("/popper.min.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/popper.min.js", "text/javascript");
+    request->send(LittleFS, "/popper.min.js", "text/javascript");
   });
 
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/script.js", "text/javascript");
+    request->send(LittleFS, "/script.js", "text/javascript");
   });
 
   server.on("/valves.json", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -506,7 +474,7 @@ void setup() {
       delay(100);
       myRTC.set(now()); 
       configarray[0]["time"]["syncprovider"] = "rtc";  
-      File config = SPIFFS.open("/config.json", "w");
+      File config = LittleFS.open("/config.json", "w");
       serializeJson(configjson, config);
       config.close(); 
       setSyncProvider(myRTC.get);
@@ -528,7 +496,7 @@ void setup() {
       configarray[0]["time"]["ntpserver"] = ntpserver;
       configarray[0]["time"]["timezone"] = timezone; 
       configarray[0]["time"]["summertime"] = summertime;
-      File config = SPIFFS.open("/config.json", "w");
+      File config = LittleFS.open("/config.json", "w");
       serializeJson(configjson, config);
       config.close(); 
       DebugSerial("NTP Time set : ");
@@ -557,7 +525,7 @@ void setup() {
         configarray[0]["wifi"]["mode"] = "AP";
       }
       
-      File config = SPIFFS.open("/config.json", "w");
+      File config = LittleFS.open("/config.json", "w");
       serializeJson(configjson, config);
       config.close(); 
     }
@@ -695,7 +663,7 @@ void setup() {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     const int dtcapacity = JSON_OBJECT_SIZE(9);
     StaticJsonDocument<dtcapacity> root;
-    root["dayofweek"] = weekday();;
+    root["dayofweek"] = weekday();
     root["day"] = day();
     root["month"] = month();
     root["year"] = year();
@@ -714,67 +682,66 @@ void setup() {
 
 void CheckCycles() {
   String test = schedulesarray[0]["name"];
-  if(test != "null") {
+  if (schedulesarray[0]["name"] == "null") {
+    DebugSerial("Aucun cycle n'est dans le fichier ou problème de lecture.");
+    return;
+  }
 
-    for (JsonObject loop : schedulesarray) {
-      delay(100);
-      JsonObject days = loop["daysActive"];
-      int id_ev = loop["id_ev"];
-      int id_prog = loop["id_prog"];
-      int starth = loop["Hourstart"];
-      int startm = loop["Minstart"];
-      int endh = loop["Hourstop"];
-      int endm = loop["Minstop"];
-      boolean state = loop["state"];
-      String temp = loop["temporary"];
-      if(CheckDay(days)) {
-        if(CheckHours(starth, startm, endh, endm)) {
-          // loop["state"] = true;
-          if(state) {
-            DebugSerial("Valve already started, cycle : " + String(id_prog));
-          }
-          else {
-            DebugSerial("Starting valve, cycle : " + String(id_prog));
-            if(StartValve(id_ev)) {
-              loop["state"] = true;
-            }
-          }
+  for (JsonObject loop : schedulesarray) {
+    JsonObject days = loop["daysActive"];
+    int id_ev = loop["id_ev"];
+    int id_prog = loop["id_prog"];
+    int starth = loop["Hourstart"];
+    int startm = loop["Minstart"];
+    int endh = loop["Hourstop"];
+    int endm = loop["Minstop"];
+    boolean state = loop["state"];
+    String temp = loop["temporary"];
+    if(CheckDay(days)) {
+      if(CheckHours(starth, startm, endh, endm)) {
+        // loop["state"] = true;
+        if(state) {
+          DebugSerial("Valve already started, cycle : " + String(id_prog));
         }
-        else {   
-          if(state) {
-            DebugSerial("Stopping cycle (hour not valid) : " + String(id_prog));
-            StopValve(id_ev);
-            loop["state"] = false;
-            
-          }
-          else {
-            DebugSerial("Valve already stopped (hour not valid), cycle : " + String(id_prog));
-            if(temp == "true") {
-              DeleteCycle(id_prog);
-            }
+        else {
+          DebugSerial("Starting valve, cycle : " + String(id_prog));
+          if(StartValve(id_ev)) {
+            loop["state"] = true;
           }
         }
       }
-      else {
+      else {   
         if(state) {
-          DebugSerial("Stopping cycle (day not valid) : " + String(id_prog));
+          DebugSerial("Stopping cycle (hour not valid) : " + String(id_prog));
           StopValve(id_ev);
           loop["state"] = false;
           
         }
         else {
-          DebugSerial("Valve already stopped (day not valid), cycle : " + String(id_prog));
+          DebugSerial("Valve already stopped (hour not valid), cycle : " + String(id_prog));
           if(temp == "true") {
             DeleteCycle(id_prog);
           }
         }
       }
-      
     }
+    else {
+      if(state) {
+        DebugSerial("Stopping cycle (day not valid) : " + String(id_prog));
+        StopValve(id_ev);
+        loop["state"] = false;
+        
+      }
+      else {
+        DebugSerial("Valve already stopped (day not valid), cycle : " + String(id_prog));
+        if(temp == "true") {
+          DeleteCycle(id_prog);
+        }
+      }
+    }
+    
   }
-  else {
-    DebugSerial("Aucun cycle n'est dans le fichier ou problème de lecture.");
-  }
+  
   
 
 }
