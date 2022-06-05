@@ -3,25 +3,23 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <ESPAsyncWebServer.h>
+#include <WiFiUdp.h>
 #include <LittleFS.h>
 // RTC/Time
-// #include <Wire.h> // Useless?
-#include <TimeLib.h>
+#include <NTPClient.h>
 #include <DS3232RTC.h>
-#include <NTPClientLib.h>
 #include <millisDelay.h>
 // JSON
 #include <ArduinoJson.h>
 #include <AsyncJson.h>
 
+
 boolean DEBUG = true;
-boolean invertHbridgelogic = false;
 
-// Temporary
-int Hpin1tostop;
-int Hpin2tostop;
-
-millisDelay CloseValveDelay;
+// UDP for NTP
+WiFiUDP ntpUDP;
+// NTP Client
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
 
 float celsius;
 
@@ -44,6 +42,13 @@ JsonArray valvesarray = valvesjson.to<JsonArray>();
 StaticJsonDocument<300> configjson;
 JsonArray configarray = configjson.to<JsonArray>();
 
+time_t NTPgetTime()
+{
+  timeClient.update();
+  return timeClient.getEpochTime(); //get Epoch time from NTP
+}
+getExternalTime NTPTime = &NTPgetTime;
+
 
 void DebugSerial(String msg) {
   if(DEBUG) {
@@ -51,8 +56,86 @@ void DebugSerial(String msg) {
   }
 }
 
+void StartValve(int id, boolean force = false) {
+  JsonObject valve = valvesarray[id];
+  String name = valve["name"];
+  bool state = valve["state"];
+  int type = valve["type"];
+  int pin1 = valve["pin1"];
+  int pin2 = valve["pin2"];
+  if(!state || force) {
+    if (type == 0) {
+      digitalWrite(pin1, HIGH);
+    }
+    else if (type == 1) {
+      // To be continued
+    }
+    else if (type == 2) {
+      long last_time = millis();
+      pinMode(pin1, OUTPUT);
+      pinMode(pin2, OUTPUT);
+      while(millis() - last_time < 1500) {
+        digitalWrite(pin1, HIGH);
+        digitalWrite(pin2, LOW);
+      }
+      digitalWrite(pin1, LOW);
+      digitalWrite(pin2, LOW);
+    }
+    DebugSerial(name + String(" started"));
+    valvesarray[id]["state"] = true;
+  }
+}
+
+void StopValve(int id, boolean force = false) {
+  JsonObject valve = valvesarray[id];
+  String name = valve["name"];
+  int type = valve["type"];
+  int pin1 = valve["pin1"];
+  int pin2 = valve["pin2"];
+  bool state = valve["state"];
+  if(state || force) {
+    if (type == 0) {
+      digitalWrite(pin1, LOW);
+    }
+    else if (type == 1) {
+      // To be continued
+    }
+    else if (type == 2) {
+      long last_time = millis();
+      pinMode(pin1, OUTPUT);
+      pinMode(pin2, OUTPUT);
+      while(millis() - last_time < 1500) {
+        digitalWrite(pin1, LOW);
+        digitalWrite(pin2, HIGH);
+      }
+      digitalWrite(pin1, LOW);
+      digitalWrite(pin2, LOW);
+    }
+    DebugSerial(name + String(" stopped"));
+    valvesarray[id]["state"] = false;
+  }
+}
+
+
+void InitValves() {
+  for(int i = 0; i < valvesarray.size(); i++) {
+    JsonObject valve = valvesarray[i];
+    String name = valve["name"];
+    int type = valve["type"];
+    int pin1 = valve["pin1"];
+    int pin2 = valve["pin2"];
+    String starturl = valve["starturl"];
+    String stopurl = valve["stopurl"];
+    pinMode(pin1, OUTPUT);
+    pinMode(pin2, OUTPUT);
+    StopValve(i, true);
+    DebugSerial(name + String(" initialized"));
+  }
+}
+
+
 boolean CheckDay(JsonObject daystotest) {
-  String days[7] = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+  String days[7] = {"sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"};
   if (daystotest[days[weekday()-1]]) {
     return true;
   }
@@ -71,160 +154,18 @@ boolean CheckHours(int starth, int startm, int endh, int endm) {
   }
 }
 
-boolean StartValve(int id_ev) {
-  boolean success = false;
-  String test = valvesarray[0]["name"];
-  if(test != "null") {
-      for(JsonObject loop : valvesarray) {
-        String id = loop["id_ev"];
-        if(id.toInt() == id_ev) {
-          String started = loop["state"];
-          if(started == "false") {
-            String name = loop["name"];
-            String type = loop["type"];
-            if(type.toInt() == 0) {
-              String startpin = loop["startpin"];
-              digitalWrite(startpin.toInt(), HIGH);
-              success = true;
-            }
-            else if(type.toInt() == 1) {
-              String url = loop["starturl"];
-              HTTPClient http;
-              http.begin(url);
-              int httpCode = http.GET();
-              if(httpCode == 200 || httpCode == 204) {
-                success = true;
-              }
-              http.end();
-            }
-            else if(type.toInt() == 2) {
-              
-              String Hpin1 = loop["Hpin1"];
-              String Hpin2 = loop["Hpin2"];
-              if(invertHbridgelogic) {
-                digitalWrite(Hpin1.toInt(), LOW);
-                digitalWrite(Hpin2.toInt(), HIGH);
-              }
-              else {
-                digitalWrite(Hpin1.toInt(), HIGH);
-                digitalWrite(Hpin2.toInt(), LOW);
-              }
-              Hpin1tostop = Hpin1.toInt();
-              Hpin2tostop = Hpin2.toInt();
-              delay(500);
-              CloseValveDelay.start(1500);
-              success = true;
-            }
-            if(success) {
-              loop["state"] = true;
-            }
-          }
-          else {
-            success = true;
-          }  
-        }
-      }
-  }
-  else {
-    DebugSerial("valvesjson Error.");
-  }
-  return success;
-} 
 
-boolean StopValve(int id_ev, boolean forcestop = false, boolean startup = false) {
-  boolean success = false;
-  String test = valvesarray[0]["name"];
-  if(test != "null") {
-      for(JsonObject loop : valvesarray) {
-        String id = loop["id_ev"];
-        if(id.toInt() == id_ev) {
-          String started = loop["state"];
-          if(started == "true" || forcestop) {
-            String name = loop["name"];
-            String type = loop["type"];
-            if(type.toInt() == 0) {
-              String startpin = loop["startpin"];
-              digitalWrite(startpin.toInt(), LOW);
-              success = true;
-            }
-            else if(type.toInt() == 1) {
-              String url = loop["stopurl"];
-              HTTPClient http;
-              http.begin(url);
-              int httpCode = http.GET();
-              if(httpCode == 200 || httpCode == 204) {
-                success = true;
-              }
-              http.end();
-            }
-            else if(type.toInt() == 2) {
-              String Hpin1 = loop["Hpin1"];
-              String Hpin2 = loop["Hpin2"];
-              
-              if(invertHbridgelogic) {
-                digitalWrite(Hpin1.toInt(), HIGH);
-                digitalWrite(Hpin2.toInt(), LOW);
-              }
-              else {
-                digitalWrite(Hpin1.toInt(), LOW);
-                digitalWrite(Hpin2.toInt(), HIGH);
-              }
-              if(startup) {
-                delay(1500);
-                digitalWrite(Hpin1.toInt(), LOW);
-                digitalWrite(Hpin2.toInt(), LOW);
-              }
-              else {
-                Hpin1tostop = Hpin1.toInt();
-                Hpin2tostop = Hpin2.toInt();
-                delay(500);
-                CloseValveDelay.start(1500);
-              }
-              success = true;
-            }
-            if(success) {
-              loop["state"] = false;
-            }
-          }
-          else {
-            success = true;
-          }
-        }
-      }
-  }
-  else {
-    DebugSerial("Error - valvesjson");
-  }
-  return success;
-} 
 
 void DeleteCycle(int idtodelete) {
   String test = schedulesjson[0]["name"];
   if(test != "null") {
     int id_ev = schedulesjson[idtodelete]["id_ev"];
-    String state = valvesjson[id_ev]["state"];
-    if(state == "true") {
-      DebugSerial("Stopping valve before deleting cycle."); // This is not working and I don't know why.
-      
-      if(!StopValve(idtodelete, true)) {
-        DebugSerial("Can't stop valve.");
-        return;
-      }
-      
-      
-    }
-    
+    StopValve(id_ev);
     schedulesjson.remove(idtodelete);
-    int i = 0;
-    for(JsonObject loop : schedulesarray) {
-      loop["id_prog"] = i;
-      i++;
-    }
     File schedules = LittleFS.open("/schedules.json", "w");
     serializeJson(schedulesjson, schedules);
     schedules.close();   
     DebugSerial("Cycle deleted.");
-    
   }
   else {
     DebugSerial("Impossible de lire le fichier.");
@@ -232,11 +173,9 @@ void DeleteCycle(int idtodelete) {
 }
 
 void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm, JsonObject daysjson, boolean temp) { 
-  int id_prog = schedulesjson.size();
   JsonObject schedule = schedulesarray.createNestedObject();
   schedule["name"] = name;
   schedule["id_ev"] = id_ev;
-  schedule["id_prog"] = id_prog;
   schedule["Hourstart"] = starth;
   schedule["Minstart"] = startm;
   schedule["Hourstop"] = endh;
@@ -254,16 +193,7 @@ void AddCycle(String name, int id_ev, int starth, int startm, int endh, int endm
 void DeleteValve(int idtodelete) {
   String test = valvesjson[0]["name"];
   if(test != "null") {
-    String state = valvesjson[idtodelete]["state"];
-    if(state == "true") {
-      DebugSerial("Stopping valve before deleting valve.");
-      
-      if(!StopValve(idtodelete, true)) {
-        DebugSerial("Can't stop valve.");
-        return;
-      }
-      
-    }
+    StopValve(idtodelete);
     for(JsonObject valvecycle : schedulesarray) {
       if(valvecycle["id_ev"] == idtodelete) {
         int idcycle = valvecycle["id_prog"];
@@ -273,11 +203,6 @@ void DeleteValve(int idtodelete) {
       }
     }
     valvesjson.remove(idtodelete);
-    int i = 0;
-    for(JsonObject loop : valvesarray) {
-      loop["id_ev"] = i;
-      i++;
-    }
     File valves = LittleFS.open("/valves.json", "w");
     serializeJson(valvesjson, valves); 
     valves.close(); 
@@ -285,35 +210,20 @@ void DeleteValve(int idtodelete) {
   else {
     DebugSerial("Erreur : DeleteValve");
   } 
+  
   return;
 }
 
-void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, String starturl, String stopurl) {
-  int id_ev = valvesjson.size();
+void AddValve(String name = "Valve", int type = 0, int pin1 = 0, int pin2 = 0, String starturl = "", String stopurl = "") {
   JsonObject valve = valvesarray.createNestedObject();
-      
   valve["name"] = name;
-  valve["id_ev"] = id_ev;
-      
-  if(type == "local") {
-    valve["type"] = 0;
-    valve["startpin"] = startpin;
-  }
-  else if(type == "locallatching") {
-    valve["type"] = 2;
-    valve["Hpin1"] = Hpin1;
-    valve["Hpin2"] = Hpin2;
-  }
-  else if(type == "distante") {
-    valve["type"] = 1;
-    valve["starturl"] = starturl;
-    valve["stopurl"] = stopurl;
-  }
-  else {
-    return;
-  }
+  valve["type"] = type;
+  valve["pin1"] = pin1;
+  valve["pin2"] = pin2;
+  valve["starturl"] = starturl;
+  valve["stopurl"] = stopurl;
   valve["state"] = false;
-      
+  valve["type"] = type;
   File valves = LittleFS.open("/valves.json", "w");
   serializeJson(valvesjson, valves);
   valves.close();
@@ -321,7 +231,7 @@ void AddValve(String name, String type, int startpin, int Hpin1, int Hpin2, Stri
 }
 
 void SetWiFi(WiFiMode mode, const char *ssid, const char *password) {
-  WiFi.disconnect(); // Useless?
+  WiFi.disconnect();
   WiFi.mode(mode);
   if(mode == WIFI_AP) {
     if(WiFi.softAP(ssid, password)) {
@@ -373,6 +283,9 @@ void setup() {
   }
   config.close();
 
+  // Valves
+  InitValves();
+
   // WiFi
   String wifimode = configarray[0]["wifi"]["mode"];
   const char *ssid = configarray[0]["wifi"]["ssid"];
@@ -387,10 +300,10 @@ void setup() {
 
 
   // Time
-  myRTC.begin();
+  
   String timeprovider = configarray[0]["time"]["syncprovider"];
   if(timeprovider == "rtc"){
-    
+    myRTC.begin();
     setSyncProvider(myRTC.get);
     DebugSerial("Time Sync Provider : RTC");
   }
@@ -398,30 +311,15 @@ void setup() {
     int timezone = configarray[0]["time"]["timezone"];
     boolean summertime = configarray[0]["time"]["summertime"];
     String ntpserver = configarray[0]["time"]["ntpserver"];
-    NTP.begin(ntpserver, timezone, summertime);
-    NTP.setInterval(300);
+    int timeoffset = summertime ? 3600*timezone+3600 : 3600*timezone;
+    timeClient.setTimeOffset(timeoffset);
+    timeClient.setPoolServerName(ntpserver.c_str());
+    timeClient.begin();
+    setSyncProvider(NTPTime);
     DebugSerial("Time Sync Provider : NTP");
   }
 
 
-  // Pins init, for now, you need to replace with your pins if you don't have an ESP12E
-  // With an ESP12E, you can control 4 classic valves with relays localy and 2 latching valves (with L293D or two relays per valves)
-  pinMode(16, OUTPUT);
-  pinMode(0, OUTPUT);
-  pinMode(2, OUTPUT);
-  pinMode(14, OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
-  digitalWrite(2, HIGH); // To switch off the builtin LED
-
-  delay(500);
-
-  for (JsonObject loop : valvesarray) {
-    String id_ev = loop["id_ev"];
-    String name = loop["name"];
-    DebugSerial("Stopping valve : " + name);
-    StopValve(id_ev.toInt(), true, true);
-  }
 
   // Web Server
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -487,11 +385,12 @@ void setup() {
       int timezone = request->getParam("timezone", true)->value().toInt();
       int smt = request->getParam("summertime", true)->value().toInt();
       String ntpserver = request->getParam("ntpserver", true)->value();
-      boolean summertime = false;
-      if(smt == 1) {summertime = true;}
-
-      NTP.begin(ntpserver, timezone, summertime);
-      NTP.setInterval(300);
+      boolean summertime = smt;
+      timeClient.setPoolServerName(ntpserver.c_str());
+      int timeoffset = summertime ? 3600*timezone+3600 : 3600*timezone;
+      timeClient.setTimeOffset(timeoffset);
+      timeClient.begin();
+      setSyncProvider(NTPTime);
       configarray[0]["time"]["syncprovider"] = "ntp"; 
       configarray[0]["time"]["ntpserver"] = ntpserver;
       configarray[0]["time"]["timezone"] = timezone; 
@@ -535,10 +434,7 @@ void setup() {
   server.on("/DeleteCycle", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
-      int id_ev = schedulesarray[idtodelete]["id_ev"];
       DebugSerial("Cycle à supprimer : " + String(idtodelete));
-      StopValve(id_ev);
-      delay(500);
       DeleteCycle(idtodelete);
     }
     request->send(204);
@@ -589,7 +485,6 @@ void setup() {
     if(request->hasParam("id", true)) {
       int idtodelete = request->getParam("id", true)->value().toInt();
       DebugSerial("Vanne à supprimer : " + String(idtodelete));
-      StopValve(idtodelete);
       DeleteValve(idtodelete);
     }
     request->send(204);
@@ -599,7 +494,7 @@ void setup() {
     if(request->hasParam("id", true)) {
       int idtoclose = request->getParam("id", true)->value().toInt();
       DebugSerial("Vanne à fermer : " + String(idtoclose));
-      StopValve(idtoclose, true);
+      StopValve(idtoclose);
     }
     request->send(204);
   });
@@ -614,42 +509,25 @@ void setup() {
   });
 
   server.on("/AddValve", HTTP_POST, [](AsyncWebServerRequest *request) {
-    
-    if(request->hasParam("name", true) && request->hasParam("type", true)) {
-      String name = request->getParam("name", true)->value();
-      int type = request->getParam("type", true)->value().toInt();
-      if(type == 0) {
-        if(request->hasParam("startpin", true)) {
-          int startpin = request->getParam("startpin", true)->value().toInt();
-          DebugSerial("Ajout d'une valve locale : ");
-          DebugSerial("StartPin : " + String(startpin));
-          AddValve(name, "local", startpin, 0, 0, "", "");
-        }
-      }
-      if(type == 1) {
-        if(request->hasParam("starturl", true) && request->hasParam("stopurl", true)) {
-          String starturl = request->getParam("starturl", true)->value();
-          String stopurl = request->getParam("stopurl", true)->value();
-          DebugSerial("Ajout d'une valve distante : ");
-          DebugSerial("StartURL : " + String(starturl));
-          DebugSerial("EndURL : " + String(stopurl));
-          AddValve(name, "distante", 0, 0, 0, starturl, stopurl);
-        }
-      }
-      if(type == 2) {
-        if(request->hasParam("Hpin1", true) && request->hasParam("Hpin2", true)) {
-          int Hpin1 = request->getParam("Hpin1", true)->value().toInt();
-          int Hpin2 = request->getParam("Hpin2", true)->value().toInt();
-          DebugSerial("Ajout d'une valve avec pont en H : ");
-          DebugSerial("Hpin1 : " + String(Hpin1));
-          DebugSerial("Hpin2 : " + String(Hpin2));
-          AddValve(name, "locallatching", 0, Hpin1, Hpin2, "", "");
-        }
-      }
+    String params[] = {"name", "type", "pin1", "pin2", "starturl", "stopurl"};
 
-      
-
+    for(String param : params) {
+      if(!request->hasParam(param, true)) {
+        request->send(400);
+        return;
+      }
     }
+    
+      
+    String name = request->getParam("name", true)->value();
+    int type = request->getParam("type", true)->value().toInt();
+    int pin1 = request->getParam("pin1", true)->value().toInt();
+    int pin2 = request->getParam("pin2", true)->value().toInt();
+    //String starturl = request->getParam("starturl", true)->value();
+    //String stopurl = request->getParam("stopurl", true)->value();
+    AddValve(name, type, pin1, pin2, "", "");
+
+    
     
     request->send(204);
   });
@@ -676,6 +554,8 @@ void setup() {
   });
 
   server.begin();
+
+
   DebugSerial("Serveur HTTP Async Actif !");
   CheckCyclesDelay.start(checkcycleinterval);
 }
@@ -687,39 +567,37 @@ void CheckCycles() {
     return;
   }
 
-  for (JsonObject loop : schedulesarray) {
-    JsonObject days = loop["daysActive"];
-    int id_ev = loop["id_ev"];
-    int id_prog = loop["id_prog"];
-    int starth = loop["Hourstart"];
-    int startm = loop["Minstart"];
-    int endh = loop["Hourstop"];
-    int endm = loop["Minstop"];
-    boolean state = loop["state"];
-    String temp = loop["temporary"];
+  for (int id_prog = 0; id_prog < schedulesarray.size(); id_prog++) {
+    JsonObject prog = schedulesarray[id_prog];
+    JsonObject days = prog["daysActive"];
+    String name = prog["name"];
+    int id_ev = prog["id_ev"];
+    int starth = prog["Hourstart"];
+    int startm = prog["Minstart"];
+    int endh = prog["Hourstop"];
+    int endm = prog["Minstop"];
+    boolean state = prog["state"];
+    bool temp = prog["temporary"];
     if(CheckDay(days)) {
       if(CheckHours(starth, startm, endh, endm)) {
-        // loop["state"] = true;
         if(state) {
-          DebugSerial("Valve already started, cycle : " + String(id_prog));
+          DebugSerial("Valve already started, cycle : " + name);
         }
         else {
-          DebugSerial("Starting valve, cycle : " + String(id_prog));
-          if(StartValve(id_ev)) {
-            loop["state"] = true;
-          }
+          DebugSerial("Starting valve, cycle : " + name);
+          StartValve(id_ev);
+          prog["state"] = true;
         }
       }
       else {   
         if(state) {
-          DebugSerial("Stopping cycle (hour not valid) : " + String(id_prog));
+          DebugSerial("Stopping cycle (hour not valid) : " + name);
           StopValve(id_ev);
-          loop["state"] = false;
-          
+          prog["state"] = false;
         }
         else {
-          DebugSerial("Valve already stopped (hour not valid), cycle : " + String(id_prog));
-          if(temp == "true") {
+          DebugSerial("Valve already stopped (hour not valid), cycle : " + name);
+          if(temp) {
             DeleteCycle(id_prog);
           }
         }
@@ -727,20 +605,19 @@ void CheckCycles() {
     }
     else {
       if(state) {
-        DebugSerial("Stopping cycle (day not valid) : " + String(id_prog));
+        DebugSerial("Stopping cycle (day not valid) : " + name);
         StopValve(id_ev);
-        loop["state"] = false;
-        
+        prog["state"] = false;
       }
       else {
-        DebugSerial("Valve already stopped (day not valid), cycle : " + String(id_prog));
-        if(temp == "true") {
+        DebugSerial("Valve already stopped (day not valid), cycle : " + name);
+        if(temp) {
           DeleteCycle(id_prog);
         }
       }
     }
-    
   }
+
   
   
 
@@ -764,9 +641,5 @@ void loop() {
     CheckCycles();
     CheckCyclesDelay.start(checkcycleinterval);
   }
-  if(CloseValveDelay.justFinished()) {
-    digitalWrite(Hpin1tostop, LOW);
-    digitalWrite(Hpin2tostop, LOW);
-  }
-  
+
 }

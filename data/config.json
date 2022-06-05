@@ -7,9 +7,9 @@
             "summertime": true
         },
         "wifi": {
-            "mode": "AP",
-            "ssid": "ESP MODULE",
-            "password":"password1234"
+            "mode": "STA",
+            "ssid": "MAISON",
+            "password":"barbentane"
         }
     }
     

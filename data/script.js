@@ -1,4 +1,4 @@
-var monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
+var dayschecked = [0,0,0,0,0,0,0];
 var vlistdisplayed = false;
 
 // ----------------------------------------------------------------- TOOLS FUNCTIONS
@@ -162,30 +162,14 @@ $("#wifisave").click(function() {
 });
 
 function setDay() {
-    monday = 0, tuesday = 0, wednesday = 0, thursday = 0, friday = 0, saturday = 0, sunday = 0;
+    var days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    dayschecked = [0,0,0,0,0,0,0];
 
-    if($("#monday").is(":checked")) {
-        monday = 1;
+    for(var i = 0; i < days.length; i++) {
+        if($("#" + days[i]).is(":checked")) {
+            dayschecked[i] = 1;
+        }
     }
-    if($("#tuesday").is(":checked")) {
-        tuesday = 1;
-    }
-    if($("#wednesday").is(":checked")) {
-        wednesday = 1;
-    }
-    if($("#thursday").is(":checked")) {
-        thursday = 1;
-    }
-    if($("#friday").is(":checked")) {
-        friday = 1;
-    }
-    if($("#saturday").is(":checked")) {
-        saturday = 1;
-    }
-    if($("#sunday").is(":checked")) {
-        sunday = 1;
-    }
-
 }
 
 $(':checkbox').change(function() {
@@ -198,28 +182,16 @@ function InitValves() {
     var xhttp = new XMLHttpRequest();
     
     document.getElementById("valves-list").innerHTML = "";
-    document.getElementById("inputev").innerHTML = '<option selected disabled value="RIEN">Choisir un type...</option>';
+    document.getElementById("inputev").innerHTML = '<option selected disabled value="RIEN">Choisir une vanne...</option>';
     
     xhttp.onreadystatechange = function() {
         if(this.readyState == 4 && this.status == 200) {
             var json = JSON.parse(this.responseText);
-            
-            for(var i = 0; i < json.length; i++) {
-                var obj = json[i];
-                var type;
-                if(obj.type == 0) {
-                    type = "Locale";
-                }
-                else if(obj.type == 1) {
-                    type = "Distante";
-                }
-                else if(obj.type == 2) {
-                    type = "Locale (latching)";
-                }
-                else {
-                    type = "Inconnu";
-                }
-                var valveslisthtml = "<a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + obj.id_ev + " </small> </div> <p class='statelabel'>Etat : </p>"
+            var type_names = ["Locale", "Distante", "Locale (latching)"];
+            for(var id_ev = 0; id_ev < json.length; id_ev++) {
+                var obj = json[id_ev];
+                var type = type_names[obj.type];
+                var valveslisthtml = "<a href='#' class='list-group-item list-group-item-action flex-column align-items-start'> <div class='d-flex w-100 justify-content-between'> <h5 class='mb-1'>" + obj.name + "</h5> <small>" + type + " | " + id_ev + " </small> </div> <p class='statelabel'>Etat : </p>"
                 
                  
                 if (!obj.state) { 
@@ -228,11 +200,11 @@ function InitValves() {
                 else { 
                     valveslisthtml += "<p class='stateon'>ON</p>"; 
                 }
-                valveslisthtml += "<br> <p>Démarrage manuel : <br><input type='number' id='manustart" + obj.id_ev + "' value='2' min='2' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + obj.id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button style='float: left;' type='button' onclick='StartValve(" + obj.id_ev + ");' class='btn btn-primary btn-sm'>Ouvrir la vanne</button>  <button style='float: left; margin-left: 10px;' type='button' onclick='StopValve(" + obj.id_ev + ");' class='btn btn-danger btn-sm'>Fermer la vanne</button>  <br> <button style='float: right;' type='button' onclick='DeleteValve(" + obj.id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
+                valveslisthtml += "<br> <p>Démarrage manuel : <br><input type='number' id='manustart" + id_ev + "' value='2' min='2' max='300'> minutes <button type='button' onclick='TemporaryCycle(" + id_ev + ");' class='btn btn-outline-primary btn-sm'>Valider</button></p> <br> <button style='float: left;' type='button' onclick='StartValve(" + id_ev + ");' class='btn btn-primary btn-sm'>Ouvrir la vanne</button>  <button style='float: left; margin-left: 10px;' type='button' onclick='StopValve(" + id_ev + ");' class='btn btn-danger btn-sm'>Fermer la vanne</button>  <br> <button style='float: right;' type='button' onclick='DeleteValve(" + id_ev + ");' class='btn btn-outline-danger btn-sm'>Supprimer</button> </a> ";
                 
                 document.getElementById("valves-list").innerHTML += valveslisthtml;
 
-                document.getElementById("inputev").innerHTML += '<option value="' + obj.id_ev + '">' + obj.name + '</option>';
+                document.getElementById("inputev").innerHTML += '<option value="' + id_ev + '">' + obj.name + '</option>';
             }
             
             
@@ -248,25 +220,20 @@ function StartValve(id_ev) {
             alert("Il y a un problème : " + err);
         }
         else {
-            for(var i = 0; i < data.length; i++) {
-                var objopen = data[i];
-                if(id_ev == objopen.id_ev) {
-                    if (window.confirm('Voulez-vous vraiment ouvrir la vanne "' + objopen.name + '" ?'))
-                    {
-                        $.post("StartValve", {
-                            id: id_ev
-                        })
-                        .done(function() {
-                            setTimeout(InitCycles(), 1000);
-                            setTimeout(InitValves(), 1000);
-                        })
-                        .fail(function() {
-                            alert("Il y a eu un problème lors de l'ouverture de la vanne.")
-                        });
-                        
-                    }    
-                }   
-            }
+            if (window.confirm('Voulez-vous vraiment ouvrir la vanne "' + data[id_ev].name + '" ?'))
+            {
+                $.post("StartValve", {
+                    id: id_ev
+                })
+                .done(function() {
+                    setTimeout(InitCycles(), 1000);
+                    setTimeout(InitValves(), 1000);
+                })
+                .fail(function() {
+                    alert("Il y a eu un problème lors de l'ouverture de la vanne.")
+                });
+                
+            }  
         }
         
     });
@@ -278,25 +245,20 @@ function StopValve(id_ev) {
             alert("Il y a un problème : " + err);
         }
         else {
-            for(var i = 0; i < data.length; i++) {
-                var objdel = data[i];
-                if(id_ev == objdel.id_ev) {
-                    if (window.confirm('Voulez-vous vraiment fermer la vanne "' + objdel.name + '" ?'))
-                    {
-                        $.post("StopValve", {
-                            id: id_ev
-                        })
-                        .done(function() {
-                            setTimeout(InitCycles(), 1000);
-                            setTimeout(InitValves(), 1000);
-                        })
-                        .fail(function() {
-                            alert("Il y a eu un problème lors de la fermeture de la vanne.")
-                        });
-                        
-                    }    
-                }   
-            }
+            if (window.confirm('Voulez-vous vraiment fermer la vanne "' + data[id_ev].name + '" ?'))
+            {
+                $.post("StopValve", {
+                    id: id_ev
+                })
+                .done(function() {
+                    setTimeout(InitCycles(), 1000);
+                    setTimeout(InitValves(), 1000);
+                })
+                .fail(function() {
+                    alert("Il y a eu un problème lors de la fermeture de la vanne.")
+                });
+                
+            } 
         }
         
     });
@@ -308,73 +270,41 @@ function DeleteValve(id_ev) {
             alert("Il y a un problème : " + err);
         }
         else {
-            for(var i = 0; i < data.length; i++) {
-                var objdel = data[i];
-                if(id_ev == objdel.id_ev) {
-                    if (window.confirm('Voulez-vous vraiment supprimer la vanne "' + objdel.name + '" ?'))
-                    {
-                        $.post("DeleteValve", {
-                            id: id_ev
-                        })
-                        .done(function() {
-                            setTimeout(InitCycles(), 1000);
-                            setTimeout(InitValves(), 1000);
-                        })
-                        .fail(function() {
-                            alert("Il y a eu un problème lors de la suppression de la vanne.")
-                        });
-                        
-                    }    
-                }   
+            if (window.confirm('Voulez-vous vraiment supprimer la vanne "' + data[id_ev].name + '" ?'))
+            {
+                $.post("DeleteValve", {
+                    id: id_ev
+                })
+                .done(function() {
+                    setTimeout(InitCycles(), 1000);
+                    setTimeout(InitValves(), 1000);
+                })
+                .fail(function() {
+                    alert("Il y a eu un problème lors de la suppression de la vanne.")
+                });
+                
             }
         }
         
     });
 }
 
-function AddValve(name, type, startpin, Hpin1, Hpin2, starturl, stopurl) {
-    if(type == 0) {
-        $.post('AddValve', {
-            name: name,
-            type: type,
-            startpin: startpin
-        })
-        .done(function() {
-            setTimeout(InitValves(), 1000);
-        })
-        .fail(function() {
-            alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
-        });
-    }
-    if(type == 1) {
-        $.post('AddValve', {
-            name: name,
-            type: type,
-            starturl: starturl,
-            stopurl: stopurl
-        })
-        .done(function() {
-            $('#tab1Id').tab('show');
-            setTimeout(InitValves(), 1000);
-        })
-        .fail(function() {
-            alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
-        });
-    }
-    if(type == 2) {
-        $.post('AddValve', {
-            name: name,
-            type: type,
-            Hpin1: Hpin1,
-            Hpin2: Hpin2
-        })
-        .done(function() {
-            setTimeout(InitValves(), 1000);
-        })
-        .fail(function() {
-            alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
-        });
-    }
+function AddValve(name, type, pin1, pin2, starturl, stopurl) {
+    $.post('AddValve', {
+        name: name || "Valve",
+        type: type || 0,
+        pin1: pin1 || 0,
+        pin2: pin2 || 0,
+        starturl: starturl || "",
+        stopurl: stopurl || ""
+    })
+    .done(function() {
+        setTimeout(InitValves(), 1000);
+    })
+    .fail(function() {
+        alert("Il y a eu un problème lors de l'envoi des informations de la nouvelle vanne.")
+    });
+    
 } 
 
 $("#vannetype").change(function() {
@@ -404,15 +334,12 @@ $( "#vannesave" ).click(function() {
     
     if(type == "local") {
         var startpin = $("#startpin").val();
-        // if(startpin == 5 || startpin == 4) {alert("Cette pin ne peut pas être utilisée."); return;}
         AddValve(name, 0, startpin);
     }
     if(type == "locallatching") {
         var Hpin1 = $("#Hpin1").val();
         var Hpin2 = $("#Hpin2").val();
-        // if(Hpin1 == 5 || Hpin1 == 4 ) {alert("La pin " + Hpin1 + " ne peut pas être utilisée."); return;}
-        // if(Hpin2 == 5 || Hpin2 == 4 ) {alert("La pin " + Hpin2 + " ne peut pas être utilisée."); return;}
-        AddValve(name, 2, 0, Hpin1, Hpin2, "", "");
+        AddValve(name, 2, Hpin1, Hpin2);
     }
     if(type == "distante") {
         var starturl = $("#starturl").val();
@@ -431,7 +358,6 @@ $( "#vannesave" ).click(function() {
 // ----------------------------------------------------------------- CYCLES FUNCTIONS
 
 function InitCycles() {
-    var valvesdisplayed = [];
     
     document.getElementById("cycles").innerHTML = "";
     
@@ -444,50 +370,36 @@ function InitCycles() {
                     if (err !== null) {
                         alert('Something went wrong: ' + err);
                     } else {  
-                        for(var j = 0; j < datavalves.length; j++) {
-                            var objvalve = datavalves[j];
-                            for(var i = 0; i < dataschedules.length; i++) {
-                                var objschedule = dataschedules[i];
-                                var cyclelistinner = ""
-                                
-                                if(objschedule.id_ev == objvalve.id_ev) {
+                        for(var id_ev = 0; id_ev < datavalves.length; id_ev++) {
+                            var objvalve = datavalves[id_ev];
+                            var cyclelistinner = "";
+                            var hascycle = false;
+                            cyclelistinner += "<div class=\"settingstitle\"> <h2 style=\"display: inline;\" class=\"tab_title\">" + objvalve.name + "</h2> </div>";
+                            for(var id_prog = 0; id_prog < dataschedules.length; id_prog++) {
+                                var objschedule = dataschedules[id_prog];
+                                if(objschedule.id_ev == id_ev) {
+                                    hascycle = true;
                                     var objdays = objschedule.daysActive;
                                     var daysarray = []
-                                    if(objdays["monday"]) {
-                                        daysarray.push("Lundi");
+                                    var daysen = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+                                    var daysfr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+                                    for(day in daysen) {
+                                        if(objdays[daysen[day]]) {
+                                            daysarray.push(daysfr[day]);
+                                        }
                                     }
-                                    if(objdays["tuesday"]) {
-                                        daysarray.push("Mardi");
-                                    }
-                                    if(objdays["wednesday"]) {
-                                        daysarray.push("Mercredi");
-                                    }
-                                    if(objdays["thursday"]) {
-                                        daysarray.push("Jeudi");
-                                    }
-                                    if(objdays["friday"]) {
-                                        daysarray.push("Vendredi");
-                                    }
-                                    if(objdays["saturday"]) {
-                                        daysarray.push("Samedi");
-                                    }
-                                    if(objdays["sunday"]) {
-                                        daysarray.push("Dimanche");
-                                    }
-                                    if(!valvesdisplayed.includes(objvalve.id_ev)) {
-                                        cyclelistinner += "<div class=\"settingstitle\"> <h2 style=\"display: inline;\" class=\"tab_title\">Cycles (" + objvalve.name + ") :</h2> </div>";
-                                        valvesdisplayed.push(objvalve.id_ev);
-                                    }
-                                    
-                                    cyclelistinner += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + objschedule.id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p> ' ;
+
+                                    cyclelistinner += '<div class="list-group" style="margin-top: 10px;"> <a href="#" class="list-group-item list-group-item-action flex-column align-items-start"> <div class="d-flex w-100 justify-content-between"> <h5 class="mb-1"> ' + objschedule.name + ' </h5> <button type="button" onclick="DeleteCycle(' + id_prog + ');" class="btn btn-outline-danger btn-sm">Supprimer</button> </div> <p class="hstart">Heure début : ' + objschedule.Hourstart + 'h' + objschedule.Minstart + '  </p> <p class="hstop">Heure fin : ' + objschedule.Hourstop + 'h' + objschedule.Minstop + ' </p> ' ;
                                     if(!objschedule.temporary) {
                                         cyclelistinner += '<p>Jour(s) :  ' + daysarray.join(', ') + ' </p> </a> </div>';
                                     }
-                                    document.getElementById("cycles").innerHTML += cyclelistinner;
+                                    
                                 } 
                                 
                             }
-                                          
+                            if(hascycle) {
+                                document.getElementById("cycles").innerHTML += cyclelistinner;
+                            }              
                         }                     
                         
                     }
@@ -503,24 +415,19 @@ function DeleteCycle(id_prog) {
             alert("Il y a un problème : " + err);
         }
         else {
-            for(var i = 0; i < data.length; i++) {
-                var objdel = data[i];
-                if(id_prog == objdel.id_prog) {
-                    if (window.confirm('Voulez-vous vraiment supprimer le cycle "' + objdel.name + '" ?'))
-                    {
-                        $.post("DeleteCycle", {
-                            id: id_prog
-                        })
-                        .done(function() {
-                            setTimeout(InitCycles(), 1000);
-                        })
-                        .fail(function() {
-                            alert("Il y a eu un problème lors de la suppression du cycle.")
-                        });
-                        
-                    }    
-                }   
-            }
+            if (window.confirm('Voulez-vous vraiment supprimer le cycle "' + data[id_prog].name + '" ?'))
+            {
+                $.post("DeleteCycle", {
+                    id: id_prog
+                })
+                .done(function() {
+                    setTimeout(InitCycles(), 1000);
+                })
+                .fail(function() {
+                    alert("Il y a eu un problème lors de la suppression du cycle.")
+                });
+                
+            } 
         }
         
     });
@@ -571,14 +478,13 @@ $( "#cyclesave" ).click(function() {
     EndHour.setHours(hend, mend, 0);
     if(EndHour < StartHour) {alert("L'heure de fin doit être supérieure à l'heure de début"); return;}
 
-    var daysactive = [monday, tuesday, wednesday, thursday, friday, saturday, sunday];
     var falsearray = [0, 0, 0, 0, 0, 0, 0];
-    if(daysactive.equals(falsearray)) {alert("Veuillez sélectionner au moins un jour"); return;}
+    if(dayschecked.equals(falsearray)) {alert("Veuillez sélectionner au moins un jour"); return;}
 
     
-    if (window.confirm('Voulez-vous créer le cycle "' + name + '" ? \nValeurs : \nNom : ' + name + "\n" + "Vanne : " + id_ev + "\n" + "Heure début : " + StartHour.getHours() + "h" + StartHour.getMinutes() + "\n" + "Heure de fin : " + EndHour.getHours() + "h" + EndHour.getMinutes() + "\n" + "Jours : " + daysactive)) {
+    if (window.confirm('Voulez-vous créer le cycle "' + name + '" ? \nValeurs : \nNom : ' + name + "\n" + "Vanne : " + id_ev + "\n" + "Heure début : " + StartHour.getHours() + "h" + StartHour.getMinutes() + "\n" + "Heure de fin : " + EndHour.getHours() + "h" + EndHour.getMinutes() + "\n" + "Jours : " + dayschecked)) {
         $('#ModalCreateSchedule').modal('hide');
-        AddCycle(name, id_ev, StartHour, EndHour, daysactive, 0);
+        AddCycle(name, id_ev, StartHour, EndHour, dayschecked, 0);
     }    
 
     $('#ModalCreateSchedule').modal('hide');
@@ -596,13 +502,8 @@ function TemporaryCycle(id_ev) {
             alert("Il y a un problème : " + err);
         }
         else {
-            for(var i = 0; i < data.length; i++) {
-                var objtemp = data[i];
-                if(id_ev == objtemp.id_ev) {
-                    if(window.confirm("Voulez-vous lancer un cycle temporaire de " + minutes + " minutes pour la vanne \"" + objtemp.name + "\" ?")) {
-                        AddCycle("Cycle temporaire", id_ev, datestart, datestop, daystemp, true);
-                    }
-                }   
+            if(window.confirm("Voulez-vous lancer un cycle temporaire de " + minutes + " minutes pour la vanne \"" + data[id_ev].name + "\" ?")) {
+                AddCycle("Cycle temporaire", id_ev, datestart, datestop, daystemp, true);
             }
         }
         
@@ -614,9 +515,6 @@ function TemporaryCycle(id_ev) {
 
 // ----------------------------------------------------------------- OTHERS FUNCTIONS
 
-function refresh() {
-    getDate()
-}
 
 $(document).ready(function() {
     getDate();
@@ -632,4 +530,4 @@ $(document).ready(function() {
     })
 });
 
-setInterval(refresh, 3000);
+setInterval(getDate, 3000);
